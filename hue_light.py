@@ -5,7 +5,7 @@ from phue import Bridge
 from rgbxy import Converter
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('EDHue.HueLight')
 
 
 class hue_light_control:
@@ -36,10 +36,10 @@ class hue_light_control:
 
         ::return: nothing
         """
-        self.star_red = 0
-        self.star_green = 0
-        self.star_blue = 0
-        self.star_bright = 0
+        self.star_red = 255
+        self.star_green = 255
+        self.star_blue = 255
+        self.star_bright = 0.8
         self.red = 0
         self.green = 0
         self.blue = 0
@@ -109,12 +109,22 @@ class hue_light_control:
         self.command()
     
     def colorloop(self):
+        logger.debug('In colorloop')
+        logger.debug('Set status to loop')
         self.set_status('loop')
+        logger.debug('Storing old brightness.')
         old_brightness = self.bright
+        logger.debug('Old brightness: ' + str(old_brightness))
         self.bright = 1
+        logger.debug('Sending command')
         self.command()
         self.bright = old_brightness
         self.set_status()
+    
+    def clear_colorloop(self):
+        logger.debug('Sending a command to clear the color loop')
+        self.set_status()
+        self.command()
 
     def set_status(self, status: str='none'):
         """
@@ -170,7 +180,7 @@ class hue_light_control:
         self.state = False
         self.command()
 
-    def set_star(self, r: int=0, g: int=0, b: int=0, bright: float=0.8):
+    def set_star(self, r: int=255, g: int=255, b: int=255, bright: float=0.8):
         """
         Sets the values for Star RGB and Brightness
         Takes RGB + Brightness as params.
@@ -186,6 +196,7 @@ class hue_light_control:
         self.star_blue = b
         self.star_green = g
         self.star_bright = bright
+        logger.debug('Star RGB: ' + str(self.star_red) + ' ' + str(self.star_green) + ' ' + str(self.star_blue))
 
     def starlight(self):
         """
@@ -195,10 +206,12 @@ class hue_light_control:
 
         :return: nothing
         """
+        logger.debug('In Starlight')
+
         convert = Converter()
         self.ciex, self.ciey = convert.rgb_to_xy(red=self.star_red, green=self.star_green, blue=self.star_blue)
         self.bright = self.star_bright
-        self.command
+        self.command()
 
     def command(self):
         """
@@ -213,17 +226,21 @@ class hue_light_control:
         
         :return: nothing
         """
+        logger.debug('In Command')
         bri = int(self.bright * 254)
         counter = 1
         if self.color_loop:
+            logger.debug('Running a color loop')
             effect = 'colorloop'
         else:
+            logger.debug('Not running a color loop')
             effect = 'none'
 
         if self.alert_status == 'select':
             counter = 3
         
         for count in range(counter):
+            logger.debug('Sending light command.')
             self.bridge.set_light(light_id=self.light, parameter={'on': self.state, 'xy':[self.ciex, self.ciey], 'bri': bri, 'alert': self.alert_status, 'effect': effect})
         self.color_loop = False
 
