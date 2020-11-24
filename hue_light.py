@@ -1,7 +1,12 @@
 import config
+import logging
 from time import sleep
 from phue import Bridge
 from rgbxy import Converter
+
+
+logger = logging.getLogger(__name__)
+
 
 class hue_light_control:
     """Controls a Hue Light (or lights, or group) via a Hue Bridge
@@ -47,7 +52,10 @@ class hue_light_control:
         self.alert_status = 'none'
         self.light = config.hueLight
 
+        logger.debug('Initializing hue_light_control.')
+        logger.debug('Getting light status.')
         self.state = self.bridge.get_light(light_id=self.light, parameter='on')
+        logger.debug('Light status: ' + str(self.state))
 
     def rgb_to_cie(self):
         """Takes the values in red, green, blue, and populates the CIE XY equivalents
@@ -99,6 +107,14 @@ class hue_light_control:
         self.ciey = y
         self.bright = bright
         self.command()
+    
+    def colorloop(self):
+        self.set_status('loop')
+        old_brightness = self.bright
+        self.bright = 1
+        self.command()
+        self.bright = old_brightness
+        self.set_status()
 
     def set_status(self, status: str='none'):
         """
