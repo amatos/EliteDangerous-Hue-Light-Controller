@@ -1,317 +1,97 @@
-import config
-import glob
-import json
 import logging
-import math
-import os
-import psutil
-import subprocess
-import tkinter as tk
-import threading
-from threading import Thread
-from time import sleep
+import time
+from SavedGamesLocator import get_saved_games_path
 from hue_light import hue_light_control
+from journal import JournalWatcher, JournalChangeProcessor
+from stars import star_color
 
+default_journal_path = get_saved_games_path()
 
-def cleanup():
-    print('Turning off ' + config.hueLight)
-    print(hue.state)
-    hue.light_off()
-    print(hue.state)
+class ED_hue():
+    def __init__(
+            self,
+            force_polling=False,
+            journal_watcher=None,
+            journal_change_processor=JournalChangeProcessor()):
 
-    main.destroy()
-    print('See you in the Black, Commander!')
-    print('o7')
+        if journal_watcher is None:
+            journal_watcher = JournalWatcher(default_journal_path, force_polling=force_polling)
 
+        # Setup the journal watcher
+        self.journal_change_processor = journal_change_processor
+        self.journalWatcher = journal_watcher
+        self.journalWatcher.set_callback(self.on_journal_change)
 
-def get_journal_entries(hue):
-    list_of_files = glob.glob(config.logLocation)
-    try:
-        latest_file = max(list_of_files, key=os.path.getctime)
-        
-        print(latest_file)
+    def trigger_current_journal_check(self):
+        self.journalWatcher.trigger_current_journal_check()
 
-        # open latest log
-        currentLog = open(latest_file, 'r')
-
-        while True:
-            # reads lines
-            reader = currentLog.read().splitlines()
-
-            # checks if any events exist
-            if len(reader) != 0:
-                # gets last line of log (most recent event)
-                parse_journal_json(hue, reader[-1])
-            sleep(0.25)
-    except KeyboardInterrupt:
-        print("Done.")
-
-    return
-
-def parse_journal_json(hue, line):
-    # Alert types
-    flash = 'select'
-    alarm = 'lselect'
-    journal_event = json.loads(line)
-
-    if journal_event['event'] == 'Scan' and journal_event['ScanType'] == 'AutoScan' and journal_event['BodyID'] == 0:
-        print('Autoscan on system arrival.  Setting light for star type ' + journal_event['StarType'])
-        r, g, b, bri, sat = star_color(journal_event['StarType'])
-        # Take the submitted brightness value, convert it to a float between 0 and 1, and decrease it by 20%
-        bri = (bri/254) * 0.8
-        print('Star light values: r: ' + str(r) + ' g:' + str(g) + ' b:' + str(b) + ' Brightness:' + str(bri))
-        hue.set_rgb(r = r, g=g, b=b, bright=bri)
-
-    elif journal_event['event'] == 'ShieldState':
-        if journal_event['event'] == 'ShieldsUp':
-            print('Shield on')
-            # flash silver
-            hue.set_status(flash)
-            hue.set_rgb(r = 192, g=192, b=192)
-            hue.set_status()
+    def process_journal_change(self, new_entry):
+        # Some stuff we don't care about
+        excluded_event_types = ["Music", "ReceiveText"]
+        if new_entry["event"] in excluded_event_types:
+            return
+        # Control lights
+        logger.debug(new_entry)
+        if new_entry['event'] == 'StartJump':
+            logger.debug('Setting a color loop.')
+            hue.colorloop()
+            if new_entry['JumpType'] == 'Hyperspace':
+                logger.debug('Found a star ' + new_entry['StarClass'])
+                r, g, b, bright, sat = star_color(new_entry['StarClass'])
+                logger.debug('Star RGB: ' + str(r) + ' ' + str(g) + ' ' + str(b))
+                hue.set_star(r=r, g=g, b=b, bright=bright)
+        if  new_entry['event'] == 'FSDJump':
+            hue.clear_colorloop()
+            logger.debug('Colorizing light')
+            hue.starlight()
         else:
-            print('Shield Off')
-            # flash orange
-            hue.set_status(flash)
-            hue.set_rgb(r = 255, g=165, b=0)
-            hue.set_status()
-    elif journal_event['event'] in ('Docked', 'Shutdown'):
-        print('docked')
-        # Set hue to bright white
-        hue.set_rgb(r = 255, g=255, b=255)
-    elif journal_event['event'] == 'Undocked':
-        print('Undocked')
-        # flash silver
-        hue.set_status(flash)
-        hue.set_rgb(r = 192, g=192, b=192)
-        hue.set_status()
-    elif journal_event['event'] == 'DockingGranted':
-        print('Docking granted')
-        # flash green
-        hue.set_status(flash)
-        hue.set_rgb(r = 0, g=128, b=0, bright=0.5)
-        hue.set_status()
-    elif journal_event['event'] == 'PVPKill':
-        print('PVP Kill!')
-        # flash green
-        hue.set_status(flash)
-        hue.set_rgb(r = 0, g=255, b=0)
-        hue.set_status()
-    elif journal_event['event'] == 'SupercruiseEntry':
-        print('Entering Supercruise')
-        # flash yellow
-        hue.set_status(flash)
-        hue.set_rgb(r = 255, g=255, b=0)
-        hue.set_status()
-    elif journal_event['event'] == 'SupercruiseExit':
-        print('Exiting Supercruise')
-        # flash blue
-        hue.set_status(flash)
-        hue.set_rgb(r = 0, g=0, b=255)
-        hue.set_status()
-    elif journal_event['event'] in ('UnderAttack', 'HullDamage', 'HeatDamage'):
-        print('Damaged, or under attack')
-        # flash red
-        hue.set_status(flash)
-        hue.set_rgb(r = 255, g=0, b=0)
-        hue.set_status()
-    elif journal_event['event'] == 'HeatWarning':
-        print('Getting warm in the cabin')
-        # flash red
-        hue.set_status(flash)
-        hue.set_rgb(r = 255, g=165, b=0)
-        hue.set_status()
-    elif journal_event['event'] == 'StartJump':
-        print('FSD Jump')
-        # Cycle through a color loop
-        hue.set_status('loop')
-        hue.set_rgb(r = 255, g=255, b=255)
-        hue.set_status()
-    else:
-        print('Nothing found.')
+            pass
 
-    return
+    def on_journal_change(self, altered_journal):
+        entries = self.journal_change_processor.process_journal_change(altered_journal)
+        self.process_new_journal_entries(entries)
 
-def start():
-    print('Welcome!')
-    print(hue.state)
-    hue.light_on()
-    print(hue.state)
+    def process_new_journal_entries(self, entries):
+        for new_entry in entries:
+            self.process_journal_change(new_entry)
 
-    # x = threading.Thread(target=parse_journal_entries, args=(huebridge,), daemon=True)
-    x = Thread(target=get_journal_entries, args=(hue,), daemon=True)
-    x.start()
-
-
-def star_color(star_class: str):
-    # Main Sequence Stars
-    star_class_O = { 'red': 155, 'green': 176, 'blue': 255, 'brightness': 254, 'saturation': 254 }
-    star_class_B = { 'red': 170, 'green': 191, 'blue': 255, 'brightness': 254, 'saturation': 254 }
-    star_class_A = { 'red': 202, 'green': 215, 'blue': 255, 'brightness': 254, 'saturation': 254 }
-    star_class_F = { 'red': 248, 'green': 247, 'blue': 255, 'brightness': 254, 'saturation': 254 }
-    star_class_G = { 'red': 255, 'green': 244, 'blue': 234, 'brightness': 254, 'saturation': 254 }
-    star_class_K = { 'red': 255, 'green': 210, 'blue': 161, 'brightness': 254, 'saturation': 254 }
-    star_class_M = { 'red': 255, 'green': 204, 'blue': 111, 'brightness': 190, 'saturation': 200 }
-    star_class_L = { 'red': 255, 'green': 50, 'blue': 80, 'brightness': 150, 'saturation': 254 }
-    star_class_T = { 'red': 148, 'green': 16, 'blue': 163, 'brightness': 254, 'saturation': 254 }
-    star_class_Y = { 'red': 148, 'green': 16, 'blue': 163, 'brightness': 100, 'saturation': 254 }
-    # Proto Stars
-    star_class_TTS = { 'red': 255, 'green': 204, 'blue': 111, 'brightness': 150, 'saturation': 150 }
-    star_class_AeBe = { 'red': 202, 'green': 215, 'blue': 255, 'brightness': 105, 'saturation': 150 }
-    # Neutron Star
-    star_class_N = { 'red': 155, 'green': 176, 'blue': 255, 'brightness': 254, 'saturation': 254}
-    star_class_H = { 'red': 1, 'green': 1, 'blue': 1, 'brightness': 0, 'saturation': 0 }
-    star_class_SupermassiveBlackHole = { 'red': 255, 'green': 255, 'blue': 255, 'brightness': 20, 'saturation': 5 }
-    star_class_M_RedSuperGiant = { 'red': 255, 'green': 204, 'blue': 111, 'brightness': 254, 'saturation': 254 }
-
-    if star_class == "O":
-        red = star_class_O['red']
-        green = star_class_O['green']
-        blue = star_class_O['blue']
-        bri = star_class_O['brightness']
-        sat = star_class_O['saturation']
-    elif star_class == "B":
-        red = star_class_B['red']
-        green = star_class_B['green']
-        blue = star_class_B['blue']
-        bri = star_class_B['brightness']
-        sat = star_class_B['saturation']
-    elif star_class == "A":
-        red = star_class_A['red']
-        green = star_class_A['green']
-        blue = star_class_A['blue']
-        bri = star_class_A['brightness']
-        sat = star_class_A['saturation']
-    elif star_class == "F":
-        red = star_class_F['red']
-        green = star_class_F['green']
-        blue = star_class_F['blue']
-        bri = star_class_F['brightness']
-        sat = star_class_F['saturation']
-    elif star_class == "G":
-        red = star_class_G['red']
-        green = star_class_G['green']
-        blue = star_class_G['blue']
-        bri = star_class_G['brightness']
-        sat = star_class_G['saturation']
-    elif star_class == "K":
-        red = star_class_K['red']
-        green = star_class_K['green']
-        blue = star_class_K['blue']
-        bri = star_class_K['brightness']
-        sat = star_class_K['saturation']
-    elif star_class == "M":
-        red = star_class_M['red']
-        green = star_class_M['green']
-        blue = star_class_M['blue']
-        bri = star_class_M['brightness']
-        sat = star_class_M['saturation']
-    elif star_class == "L":
-        red = star_class_L['red']
-        green = star_class_L['green']
-        blue = star_class_L['blue']
-        bri = star_class_L['brightness']
-        sat = star_class_L['saturation']
-    elif star_class == "T":
-        red = star_class_T['red']
-        green = star_class_T['green']
-        blue = star_class_T['blue']
-        bri = star_class_T['brightness']
-        sat = star_class_T['saturation']
-    elif star_class == "Y":
-        red = star_class_Y['red']
-        green = star_class_Y['green']
-        blue = star_class_Y['blue']
-        bri = star_class_Y['brightness']
-        sat = star_class_Y['saturation']
-    elif star_class == "TTS":
-        red = star_class_TTS['red']
-        green = star_class_TTS['green']
-        blue = star_class_TTS['blue']
-        bri = star_class_TTS['brightness']
-        sat = star_class_TTS['saturation']
-    elif star_class == "AeBe":
-        red = star_class_AeBe['red']
-        green = star_class_AeBe['green']
-        blue = star_class_AeBe['blue']
-        bri = star_class_AeBe['brightness']
-        sat = star_class_AeBe['saturation']
-    elif star_class == "N":
-        red = star_class_N['red']
-        green = star_class_N['green']
-        blue = star_class_N['blue']
-        bri = star_class_N['brightness']
-        sat = star_class_N['saturation']
-    elif star_class == "H":
-        red = star_class_H['red']
-        green = star_class_H['green']
-        blue = star_class_H['blue']
-        bri = star_class_H['brightness']
-        sat = star_class_H['saturation']
-    elif star_class == "SupermassiveBlackHole":
-        red = star_class_SupermassiveBlackHole['red']
-        green = star_class_SupermassiveBlackHole['green']
-        blue = star_class_SupermassiveBlackHole['blue']
-        bri = star_class_SupermassiveBlackHole['brightness']
-        sat = star_class_SupermassiveBlackHole['saturation']
-    elif star_class == "M_RedSuperGiant":
-        red = star_class_M_RedSuperGiant['red']
-        green = star_class_M_RedSuperGiant['green']
-        blue = star_class_M_RedSuperGiant['blue']
-        bri = star_class_M_RedSuperGiant['brightness']
-        sat = star_class_M_RedSuperGiant['saturation']
-    
-    return red, green, blue, bri, sat
-
-
-# def setupBridgeUI():
-#     # Try to connect to Hue lights
-#     huebridge = None
-#     setup = tk.Tk()
-#     setup.title("Set up Hue bridge.")
-#     setup.geometry("700x200")
-#     setup.configure(background = "#000000")
- 
-#     tk.Label(setup, text = "Scanning for available mDNS hue bridges", bg = "#000000", fg = "#f07b05", font = ("euro caps", 24)).pack()
-    
-#     # print("Scanning for available mDNS hue bridges")
-#     _, available_devices = find_mdns_huebridge_devices()
-
-#     for this_device in available_devices:
-#         # print("Found Device: {} - Board {} - Branch {} - Revision {}".format(this_device['mDNSname'],
-#         #                                                                      this_device['board'],
-#         #                                                                      this_device['branch'],
-#         #                                                                      this_device['revision']))
-#         print("Found Device: {}".format(this_device['mDNSname'],))
-#         huebridge = this_device['mDNSname'] + '.local'
-#     print('Bridge: ' + huebridge)
-
+    def stop(self):
+        self.journalWatcher.stop()
 
 if __name__ == '__main__':
+    # create logger with 'EDHue'
+    logger = logging.getLogger('EDHue')
+    logger.setLevel(logging.DEBUG)
+
+    # create file handler which logs even debug messages
+    fh = logging.FileHandler('edhue.log')
+    fh.setLevel(logging.DEBUG)
+    
+    # create console handler with a higher log level
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    
+    # create formatter and add it to the handlers
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    ch.setFormatter(formatter)
+    
+    # add the handlers to the logger
+    logger.addHandler(fh)
+    logger.addHandler(ch)
+
+    logger.info('Starting.')
+    ed_hue = ED_hue()
     hue = hue_light_control()
-    # gui setup
-    main = tk.Tk()
 
-    main.title("Elite Dangerous Hue Light Sync")
-    main.geometry("800x300")
-    main.configure(background = "#000000")
+    logger.info('ED Hue is active.  Waiting events...')
+    hue.light_on()
 
-    # logo image
-    edlogo = tk.PhotoImage(file = "assets\edlogo2.gif")
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        logger.info('done')
+        hue.light_off()
 
-    # gui
-    tk.Label(main, text = "Elite Dangerous Hue Light Sync", bg = "#000000", fg = "#f07b05", font = ("euro caps", 38)).pack()
-    tk.Label(main, bg = "#000000").pack()
-    # Label(main, text = "Created by Hector Robe", bg = "#000000", fg = "#f07b05", bd = "0", font = ("sintony", 12)).pack()
-    # Label(main, bg = "#000000").pack()
-    tk.Button(main, compound = tk.LEFT, image = edlogo, borderwidth = 0, highlightthickness = 0, 
-        pady = 0, padx = 10, text = "Start Lighting", relief = tk.SOLID, command = start, 
-        bg = "#f07b05", fg = "#ffffff", font = ("euro caps", 32)).pack()
-    tk.Label(main, bg = "#000000").pack()
-    # tk.Button(main, borderwidth = 0, highlightthickness = 0, pady = 0, padx = 10, 
-    #        text = "Set up Hue bridge", relief = tk.SOLID, command = setupBridgeUI, bg = "#f07b05", 
-    #        fg = "#ffffff", font = ("euro caps", 32)).pack()
-    main.protocol("WM_DELETE_WINDOW", cleanup)
-
-    # gui setup
-    main.mainloop()
+    ed_hue.stop()

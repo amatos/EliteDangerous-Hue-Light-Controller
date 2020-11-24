@@ -3,7 +3,8 @@ import logging
 import os
 from time import sleep
 
-logger = logging.getLogger('EDHue')
+
+logger = logging.getLogger(__name__)
 
 
 class FileSystemUpdatePrompter:

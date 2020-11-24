@@ -8,14 +8,19 @@ from watchdog.observers import Observer
 from watchdog.observers.polling import PollingObserver
 from watchdog.events import PatternMatchingEventHandler
 
+
+logger = logging.getLogger('EDHue.JournalProcessor')
+
+
 journal_file_pattern = "Journal.*.log"
-logger = logging.getLogger('Journal')
+
 
 class JournalChangeProcessor:
     def __init__(self):
         self._new_journal_entry_callback = None
         self.latest_journal = None
         self.journal_size = 0
+        logger.debug('Initialized JournalChangeProcessor.')
 
     def start_reading_journal(self, changed_file):
         self.latest_journal = changed_file
@@ -25,7 +30,7 @@ class JournalChangeProcessor:
 
     @staticmethod
     def entry_from_journal_line(line):
-        logger.debug(f'New journal entry identified: {line}')
+        logging.debug(f'New journal entry identified: {line}')
         entry = json.loads(line)
         entry['type'] = "JournalEntry"  # Add an identifier that's common to everything we shove down the outgoing pipe so the receiver can distiguish.
         return entry
@@ -56,26 +61,16 @@ class JournalChangeProcessor:
                                 (journal_events[event_type]['timestamp'] < journal_entry['timestamp'])
                 if needs_storing:
                     journal_events[event_type] = journal_entry
-
-        # If there's a location and any other event, we can ditch the location as it will be superceded by the later
-        # events.
         values = [x for x in journal_events.values() if x]
-        if journal_events['Location']:
-            if len(values) > 1:
-                journal_events['Location'] = None
-                values = [x for x in journal_events.values() if x]
+
 
         # If there's a jump or target after the last navroute, we should send them. Otherwise they should be ignored.
-        nav_events_to_return = []
+        events_to_return = []
         if len(values) > 0:
             chronological_values = sorted(values, key=lambda k: k['timestamp'])
-            last_event = chronological_values[-1]
-            if last_event['event'] == 'NavRoute':
-                nav_events_to_return = [last_event]
-            else:
-                nav_events_to_return = chronological_values
+            events_to_return = chronological_values
 
-        return nav_events_to_return
+        return events_to_return
 
     def process_journal_change(self, changed_file):
         new_size = os.stat(changed_file).st_size
