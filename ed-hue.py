@@ -1,5 +1,7 @@
 import logging
+import logging.config
 import time
+import yaml
 from SavedGamesLocator import get_saved_games_path
 from hue_light import hue_light_control
 from journal import JournalWatcher, JournalChangeProcessor
@@ -14,84 +16,80 @@ class ED_hue():
             journal_watcher=None,
             journal_change_processor=JournalChangeProcessor()):
 
+        # Load logging config
+        with open('logging.yaml', 'r') as f:
+            log_cfg = yaml.safe_load(f.read())
+        logging.config.dictConfig(log_cfg)
+        self.logger = logging.getLogger('EDHue.ED_Hue')
+        self.logger.debug('Initializing ED_hue class.')
         if journal_watcher is None:
             journal_watcher = JournalWatcher(default_journal_path, force_polling=force_polling)
 
         # Setup the journal watcher
+        self.logger.debug('Set up the journal watcher.')
         self.journal_change_processor = journal_change_processor
         self.journalWatcher = journal_watcher
         self.journalWatcher.set_callback(self.on_journal_change)
 
     def trigger_current_journal_check(self):
+        self.logger.debug('In trigger_current_journal_check.')
         self.journalWatcher.trigger_current_journal_check()
 
     def process_journal_change(self, new_entry):
-        # Some stuff we don't care about
-        excluded_event_types = ["Music", "ReceiveText"]
-        if new_entry["event"] in excluded_event_types:
-            return
+        self.logger.debug('In process_journal_change.')
+        self.logger.debug('New event:')
+        self.logger.debug('  ' + str(new_entry))
+        self.logger.info('Received ' + new_entry['event'] + ' event.')
         # Control lights
-        logger.debug(new_entry)
         if new_entry['event'] == 'StartJump':
-            logger.debug('Setting a color loop.')
+            self.logger.debug('Received a StartJump event.')
+            self.logger.debug('Setting a color loop.')
             hue.colorloop()
             if new_entry['JumpType'] == 'Hyperspace':
-                logger.debug('Found a star ' + new_entry['StarClass'])
+                self.logger.debug('Jump type is Hyperspace!')
+                self.logger.debug('Found a star ' + new_entry['StarClass'])
                 r, g, b, bright, sat = star_color(new_entry['StarClass'])
-                logger.debug('Star RGB: ' + str(r) + ' ' + str(g) + ' ' + str(b))
+                self.logger.debug('Star RGB: ' + str(r) + ' ' + str(g) + ' ' + str(b))
                 hue.set_star(r=r, g=g, b=b, bright=bright)
         if  new_entry['event'] == 'FSDJump':
+            self.logger.debug('Received an FSDJump event.')
+            self.logger.debug('Clearing color loop')
             hue.clear_colorloop()
-            logger.debug('Colorizing light')
+            self.logger.debug('Colorizing light')
             hue.starlight()
-        else:
-            pass
 
     def on_journal_change(self, altered_journal):
+        self.logger.debug('In on_journal_change.')
         entries = self.journal_change_processor.process_journal_change(altered_journal)
-        self.process_new_journal_entries(entries)
-
-    def process_new_journal_entries(self, entries):
+        number_entries = len(entries)
+        self.logger.debug('Processing ' + str(number_entries) + ' entries.')
         for new_entry in entries:
             self.process_journal_change(new_entry)
 
     def stop(self):
+        self.logger.debug('Stopping journal watcher.')
         self.journalWatcher.stop()
 
+
 if __name__ == '__main__':
+    # Load logging config
+    with open('logging.yaml', 'r') as f:
+        log_cfg = yaml.safe_load(f.read())
+    logging.config.dictConfig(log_cfg)
     # create logger with 'EDHue'
     logger = logging.getLogger('EDHue')
-    logger.setLevel(logging.DEBUG)
-
-    # create file handler which logs even debug messages
-    fh = logging.FileHandler('edhue.log')
-    fh.setLevel(logging.DEBUG)
-    
-    # create console handler with a higher log level
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
-    
-    # create formatter and add it to the handlers
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    fh.setFormatter(formatter)
-    ch.setFormatter(formatter)
-    
-    # add the handlers to the logger
-    logger.addHandler(fh)
-    logger.addHandler(ch)
 
     logger.info('Starting.')
     ed_hue = ED_hue()
     hue = hue_light_control()
 
-    logger.info('ED Hue is active.  Waiting events...')
+    logger.info('ED Hue is active.  Awaiting events...')
     hue.light_on()
 
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        logger.info('done')
+        logger.info('Interrupt received.  Shutting down.')
         hue.light_off()
-
-    ed_hue.stop()
+        ed_hue.stop()

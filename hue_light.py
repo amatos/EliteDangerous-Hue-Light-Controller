@@ -1,11 +1,10 @@
 import config
 import logging
+import logging.config
+import yaml
 from time import sleep
 from phue import Bridge
 from rgbxy import Converter
-
-
-logger = logging.getLogger('EDHue.HueLight')
 
 
 class hue_light_control:
@@ -36,6 +35,11 @@ class hue_light_control:
 
         ::return: nothing
         """
+        # Load logging config
+        with open('logging.yaml', 'r') as f:
+            log_cfg = yaml.safe_load(f.read())
+        logging.config.dictConfig(log_cfg)
+        self.logger = logging.getLogger('EDHue.HueLight')
         self.star_red = 255
         self.star_green = 255
         self.star_blue = 255
@@ -52,10 +56,10 @@ class hue_light_control:
         self.alert_status = 'none'
         self.light = config.hueLight
 
-        logger.debug('Initializing hue_light_control.')
-        logger.debug('Getting light status.')
+        self.logger.debug('Initializing hue_light_control.')
+        self.logger.debug('Getting light status.')
         self.state = self.bridge.get_light(light_id=self.light, parameter='on')
-        logger.debug('Light status: ' + str(self.state))
+        self.logger.debug('Light status: ' + str(self.state))
 
     def rgb_to_cie(self):
         """Takes the values in red, green, blue, and populates the CIE XY equivalents
@@ -109,20 +113,20 @@ class hue_light_control:
         self.command()
     
     def colorloop(self):
-        logger.debug('In colorloop')
-        logger.debug('Set status to loop')
+        self.logger.debug('In colorloop')
+        self.logger.debug('Set status to loop')
         self.set_status('loop')
-        logger.debug('Storing old brightness.')
+        self.logger.debug('Storing old brightness.')
         old_brightness = self.bright
-        logger.debug('Old brightness: ' + str(old_brightness))
+        self.logger.debug('Old brightness: ' + str(old_brightness))
         self.bright = 1
-        logger.debug('Sending command')
+        self.logger.debug('Sending command')
         self.command()
         self.bright = old_brightness
         self.set_status()
     
     def clear_colorloop(self):
-        logger.debug('Sending a command to clear the color loop')
+        self.logger.debug('Sending a command to clear the color loop')
         self.set_status()
         self.command()
 
@@ -196,7 +200,7 @@ class hue_light_control:
         self.star_blue = b
         self.star_green = g
         self.star_bright = bright
-        logger.debug('Star RGB: ' + str(self.star_red) + ' ' + str(self.star_green) + ' ' + str(self.star_blue))
+        self.logger.debug('Star RGB: ' + str(self.star_red) + ' ' + str(self.star_green) + ' ' + str(self.star_blue))
 
     def starlight(self):
         """
@@ -206,7 +210,7 @@ class hue_light_control:
 
         :return: nothing
         """
-        logger.debug('In Starlight')
+        self.logger.debug('In Starlight')
 
         convert = Converter()
         self.ciex, self.ciey = convert.rgb_to_xy(red=self.star_red, green=self.star_green, blue=self.star_blue)
@@ -226,21 +230,21 @@ class hue_light_control:
         
         :return: nothing
         """
-        logger.debug('In Command')
+        self.logger.debug('In Command')
         bri = int(self.bright * 254)
         counter = 1
         if self.color_loop:
-            logger.debug('Running a color loop')
+            self.logger.debug('Running a color loop')
             effect = 'colorloop'
         else:
-            logger.debug('Not running a color loop')
+            self.logger.debug('Not running a color loop')
             effect = 'none'
 
         if self.alert_status == 'select':
             counter = 3
         
         for count in range(counter):
-            logger.debug('Sending light command.')
+            self.logger.debug('Sending light command.')
             self.bridge.set_light(light_id=self.light, parameter={'on': self.state, 'xy':[self.ciex, self.ciey], 'bri': bri, 'alert': self.alert_status, 'effect': effect})
         self.color_loop = False
 

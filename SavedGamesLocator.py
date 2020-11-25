@@ -1,6 +1,7 @@
 import os
 import platform
 
+
 osname = platform.system()
 if osname == 'Windows':
     import winreg

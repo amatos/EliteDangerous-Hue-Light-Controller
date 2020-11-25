@@ -1,0 +1,42 @@
+version: 1
+formatters:
+  simple:
+    format: '%(name)s - %(levelname)s - %(message)s'
+  complex:
+    format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: INFO
+    formatter: simple
+    stream: ext://sys.stdout
+  file:
+    class : logging.handlers.RotatingFileHandler
+    formatter: complex
+    filename: edhue.log
+    maxBytes: 1024000
+    backupCount: 3
+loggers:
+  EDHue:
+    level: DEBUG
+    handlers: [console, file]
+    propagate: no
+  EDHue.ED_Hue:
+    level: DEBUG
+    handlers: [console, file]
+    propagate: no
+  EDHue.FileSystemUpdatePrompter:
+    level: DEBUG
+    handlers: [console, file]
+    propagate: no
+  EDHue.journal.EntriesChangeHandler:
+    level: DEBUG
+    handlers: [console, file]
+    propagate: no
+  EDHue.journal.JournalProcessor:
+    level: DEBUG
+    handlers: [console, file]
+    propagate: no
+root:
+  level: DEBUG
+  handlers: [console]

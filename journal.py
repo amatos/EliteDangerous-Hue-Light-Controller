@@ -3,24 +3,28 @@ import time
 import os
 import glob
 import logging
+import logging.config
+import yaml
 from FileSystemUpdatePrompter import FileSystemUpdatePrompter
 from watchdog.observers import Observer
 from watchdog.observers.polling import PollingObserver
 from watchdog.events import PatternMatchingEventHandler
 
 
-logger = logging.getLogger('EDHue.JournalProcessor')
-
-
 journal_file_pattern = "Journal.*.log"
-
 
 class JournalChangeProcessor:
     def __init__(self):
+        # Load logging config
+        with open('logging.yaml', 'r') as f:
+            log_cfg = yaml.safe_load(f.read())
+        logging.config.dictConfig(log_cfg)
+        self.logger = logging.getLogger('EDHue.journal.JournalProcessor')
+        self.logger.debug('Initializing ED_hue class.')
         self._new_journal_entry_callback = None
         self.latest_journal = None
         self.journal_size = 0
-        logger.debug('Initialized JournalChangeProcessor.')
+        self.logger.debug('Initialized JournalChangeProcessor.')
 
     def start_reading_journal(self, changed_file):
         self.latest_journal = changed_file
@@ -79,7 +83,7 @@ class JournalChangeProcessor:
             self.start_reading_journal(changed_file)
 
         new_data = None
-        logger.debug(f'{changed_file} - Size change: {self.journal_size} to {new_size}')
+        self.logger.debug(f'{changed_file} - Size change: {self.journal_size} to {new_size}')
         if new_size > 0:  # Don't  try and read it if this is the first notification (we seem to get two; one from the file being cleared).
             # Check how much it has grown and read the excess
             size_diff = new_size - self.journal_size
@@ -96,7 +100,7 @@ class JournalChangeProcessor:
 
                 if self.journal_size == 0:
                     entries = JournalChangeProcessor.find_latest_interesting_entries(new_journal_lines)
-                    logger.debug(f'New journal detected; Picked out {len(entries)} entries')
+                    self.logger.debug(f'New journal detected; Picked out {len(entries)} entries')
                 else:
                     # Deal with all entries in one go in case the last one isn't complete and throws.
                     # This ensures we treat it as one atomic operation.
@@ -105,11 +109,11 @@ class JournalChangeProcessor:
                         entry = JournalChangeProcessor.entry_from_journal_line(line)
                         entries.append(entry)
 
-                    logger.debug(f'Found {len(entries)} new entries')
+                    self.logger.debug(f'Found {len(entries)} new entries')
 
                 self.journal_size = new_size
         except json.decoder.JSONDecodeError as e:
-            logger.exception(e)
+            self.logger.exception(e)
 
         return entries
 
@@ -121,6 +125,11 @@ class _EntriesChangeHandler(PatternMatchingEventHandler):
             ignore_patterns=[],
             ignore_directories=True)
 
+        # Load logging config
+        with open('logging.yaml', 'r') as f:
+            log_cfg = yaml.safe_load(f.read())
+        logging.config.dictConfig(log_cfg)
+        self.logger = logging.getLogger('EDHue.journal.EntriesChangeHandler')
         self.on_journal_change = None
 
     def set_callback(self, on_new_journal_entry):
@@ -128,21 +137,21 @@ class _EntriesChangeHandler(PatternMatchingEventHandler):
 
     def on_modified(self, event):
         changed_file = str(event.src_path)
-        logger.debug("Journal change: " + changed_file)
+        self.logger.debug("Journal change: " + changed_file)
         self.on_journal_change(changed_file)
 
     def on_created(self, event):
         changed_file = str(event.src_path)
-        logger.info("Journal created: " + changed_file)
+        self.logger.info("Journal created: " + changed_file)
         self.on_journal_change(changed_file)
 
     def on_deleted(self, event):
         file = str(event.src_path)
-        logger.debug("Journal deleted: " + file)
+        self.logger.debug("Journal deleted: " + file)
 
     def on_moved(self, event):
         file = str(event.src_path)
-        logger.debug("Journal moved: " + file)
+        self.logger.debug("Journal moved: " + file)
 
 class JournalWatcher:
 
