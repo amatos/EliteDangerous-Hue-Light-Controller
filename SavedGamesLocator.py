@@ -1,10 +1,8 @@
 import os
 import platform
 
-
-osname = platform.system()
-if osname == 'Windows':
-    import winreg
+if platform.system() == 'Windows':
+	import winreg
 
 
 def get_saved_games_path():
