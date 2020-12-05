@@ -19,10 +19,7 @@ class EDHue:
 			journal_watcher=None,
 			journal_change_processor=JournalChangeProcessor()):
 
-		# Load logging config
-		with open('logging.yaml', 'r') as f:
-			log_cfg = yaml.safe_load(f.read())
-		logging.config.dictConfig(log_cfg)
+		configure_logger()
 		self.logger = logging.getLogger('EDHue.ED_Hue')
 		self.logger.debug('Initializing EDHue class.')
 		if journal_watcher is None:
