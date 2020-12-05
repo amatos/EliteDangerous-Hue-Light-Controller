@@ -9,16 +9,58 @@ from rgbxy import Converter
 import config
 
 
+# noinspection SpellCheckingInspection
 class HueLightControl:
-	"""Controls a Hue Light (or lights, or group) via a Hue Bridge
+	"""Send commands to Hue Bridge.
 		Populate config.py with:
 			HueIP
 			hueLight
+	Attributes:
+		logger : Object
+			Local logger from logging
+		star_red : int
+			Rgb component of star color
+		star_green : int
+			rGb component of star color
+		star_blue : int
+			rgB component of star color
+		star_bright : float
+			Brightness component of star color
+		red : int
+			Rgb color component
+		green : int
+			rGb color component
+		blue : int
+			rgB color component
+		bright : float
+			Brightness color component
+		ciex : float
+			CIE X representation of color
+		ciey : float
+			CIE Y representation of color
+		bridge : object
+			Philips Hue bridge object
+		color_loop : bool
+			If true, the hue bulb cycles an RGB loop
+		state : bool
+			'True' for on, 'False' for off
+		alert_status : str
+			Hue alert status.
+			Valid options are 'none', 'loop', 'select', 'lselect'
+		light : str
+			The name of the Hue object on the bridge, defined in
+			config.py
+
+	Methods:
+		_send_command(self):
+			Sends the command to the hue bridge
+		_set_status(status='none')
+
+
 	"""
 
 	def __init__(self):
-		"""
-		Initializes HueLightControl with some default values.
+		"""Initializes HueLightControl with default values.
 
 		Please note, the default values for CIE XY are set to "white",
 			with a brightness of 80%.
@@ -36,7 +78,7 @@ class HueLightControl:
 		Brightness:
 			bright: float
 
-		::return: nothing
+		:return: None
 		"""
 		# Load logging config
 		with open('logging.yaml', 'r') as f:
@@ -64,24 +106,12 @@ class HueLightControl:
 		self.state = self.bridge.get_light(light_id=self.light, parameter='on')
 		self.logger.debug('Light status: ' + str(self.state))
 
-	def rgb_to_cie(self):
-		"""
-		Takes the values in red, green, blue, and populates the CIE XY equivalents
-		Based on Philips implementation guidance:
-		http://www.developers.meethue.com/documentation/color-conversions-rgb-xy
-
-		:return: nothing
-		"""
-		convert = Converter()
-		self.ciex, self.ciey = convert.rgb_to_xy(red=self.red, green=self.green, blue=self.blue)
-		return
 
 	def set_rgb(self, r: int = 0, g: int = 0, b: int = 0, bright: float = 0.8):
-		"""
-		Turns on the light with the provided RGB and brightness values.
+		"""Turns on the light with the provided RGB and brightness values.
 		Takes RGB + Brightness as params.
-		Uses rgb_to_cie to set the CIE XY values.
-		Then calls command() to execute the change.
+		Uses rgbxy.Converter() to set the CIE XY values.
+		Then calls _send_command() to execute the change.
 
 		:param r: int value for Red (0-254)
 		:param g: int value for Green (0-254)
@@ -93,17 +123,21 @@ class HueLightControl:
 		self.red = r
 		self.green = g
 		self.blue = b
-		self.rgb_to_cie()
 		self.bright = bright
-		self.rgb_to_cie()
-		self.command()
+		convert = Converter()
+		self.ciex, self.ciey = convert.rgb_to_xy(red=self.red,
+									   green=self.green,
+									   blue=self.blue)
+		self._send_command()
 		return
 
-	def set_cie(self, x: float = 0.3122, y: float = 0.3282, bright: float = 0.8):
-		"""
-		Turns on the light with the provided CIE XY values.
+	def set_cie(self,
+				x: float = 0.3122,
+				y: float = 0.3282,
+				bright: float = 0.8):
+		"""Turns on the light with the provided CIE XY values.
 		Takes X, Y, and Brightness
-		Then calls command() to execute the change.
+		Then calls _send_command() to execute the change.
 
 		:param x: float value for CIE X
 		:param y: float value for CIE Y
@@ -114,29 +148,28 @@ class HueLightControl:
 		self.ciex = x
 		self.ciey = y
 		self.bright = bright
-		self.command()
+		self._send_command()
 
-	def colorloop(self):
+	def colorloop(self) -> None:
 		self.logger.debug('In colorloop')
 		self.logger.debug('Set status to loop')
-		self.set_status('loop')
+		self._set_status('loop')
 		self.logger.debug('Storing old brightness.')
 		old_brightness = self.bright
 		self.logger.debug('Old brightness: ' + str(old_brightness))
 		self.bright = 1
-		self.logger.debug('Sending command')
-		self.command()
+		self.logger.debug('Sending _send_command')
+		self._send_command()
 		self.bright = old_brightness
-		self.set_status()
+		self._set_status()
 
 	def clear_colorloop(self):
-		self.logger.debug('Sending a command to clear the color loop')
-		self.set_status()
-		self.command()
+		self.logger.debug('Sending a _send_command to clear the color loop')
+		self._set_status()
+		self._send_command()
 
-	def set_status(self, status: str = 'none'):
-		"""
-		set_status populates either color_loop or alert_status
+	def _set_status(self, status: str = 'none'):
+		"""Populates either color_loop or alert_status
 		depending on how it's called.
 
 		If called without parameters, sets:
@@ -150,7 +183,7 @@ class HueLightControl:
 		If called with status='select', sets the light to perform one
 			breathing cycle.
 		If called with status='lselect', sets the light to perform breathing
-			cycles for 15 seconds, or until set_status is called with
+			cycles for 15 seconds, or until _set_status is called with
 			status='none'
 
 		:param status: 'none', 'loop', 'select', or 'lselect'
@@ -171,26 +204,29 @@ class HueLightControl:
 	def light_on(self):
 		"""
 		Sets the light state to ON.
-		calls command() to execute
+		calls _send_command() to execute
 
 		:return: nothing
 		"""
 		self.state = True
-		self.command()
+		self._send_command()
 
 	def light_off(self):
 		"""
 		Sets the light state to OFF.
-		calls command() to execute
+		calls _send_command() to execute
 
 		:return: nothing
 		"""
 		self.state = False
-		self.command()
+		self._send_command()
 
-	def set_star(self, r: int = 255, g: int = 255, b: int = 255, bright: float = 0.8):
-		"""
-		Sets the values for Star RGB and Brightness
+	def set_star(self,
+				 r: int = 255,
+				 g: int = 255,
+				 b: int = 255,
+				 bright: float = 0.8):
+		"""Sets the values for Star RGB and Brightness
 		Takes RGB + Brightness as params.
 
 		:param r: int value for Red (0-254)
@@ -204,32 +240,36 @@ class HueLightControl:
 		self.star_blue = b
 		self.star_green = g
 		self.star_bright = bright
-		self.logger.debug('Star RGB: ' + str(self.star_red) + ' ' + str(self.star_green) + ' ' + str(self.star_blue))
+		self.logger.debug('Star RGB: '
+						  + str(self.star_red) + ' '
+						  + str(self.star_green) + ' '
+						  + str(self.star_blue))
 
 	def starlight(self):
-		"""
-		Turns on the light with the Star RGB and brightness values.
+		"""Turns on the light with the Star RGB and brightness values.
 		Uses rgb_to_cie to set the CIE XY values.
-		Then calls command() to execute the change.
+		Then calls _send_command() to execute the change.
 
 		:return: nothing
 		"""
 		self.logger.debug('In Starlight')
 
 		convert = Converter()
-		self.ciex, self.ciey = convert.rgb_to_xy(red=self.star_red, green=self.star_green, blue=self.star_blue)
+		self.ciex, self.ciey = convert.rgb_to_xy(red=self.star_red,
+												 green=self.star_green,
+												 blue=self.star_blue)
 		self.bright = self.star_bright
-		self.command()
+		self._send_command()
+		return
 
-	def command(self):
-		"""
-		Executes a set_light command to the Hue bridge via phue.
+	def _send_command(self):
+		"""Executes a set_light _send_command to the Hue bridge via phue.
 		bri takes the bright (float) value and converts it to an
 			integer between 0 and 254
 		If color_loop is set, runs a color loop until interrupted.
 		If alert_status is set to 'select' (a single breathing cycle), then
 			we run that cycle 3 times.
-		After the command is sent to the Hue bridge, we explicitly turn off
+		After the _send_command is sent to the Hue bridge, we explicitly turn off
 			the color_loop.
 
 		:return: nothing
@@ -248,18 +288,24 @@ class HueLightControl:
 			counter = 3
 
 		for count in range(counter):
-			self.logger.debug('Sending light command.')
+			self.logger.debug('Sending light _send_command.')
 			self.bridge.set_light(light_id=self.light,
-								  parameter={'on': self.state,
-											 'xy': [self.ciex, self.ciey],
-											 'bri': bri,
-											 'alert': self.alert_status,
+								  parameter={'on':     self.state,
+											 'xy':     [self.ciex, self.ciey],
+											 'bri':    bri,
+											 'alert':  self.alert_status,
 											 'effect': effect})
 		self.color_loop = False
 
 
-if __name__ == '__main__':
+def main():
+	print('Sanity check: Turn on the light, wait 2s, then turn it off.')
 	hue = HueLightControl()
 	hue.light_on()
 	sleep(2)
 	hue.light_off()
+
+
+if __name__ == '__main__':
+	print('Run ed-hue.py to execute program.')
+	main()
