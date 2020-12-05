@@ -1,3 +1,4 @@
+# noinspection PyPep8Naming
 def star_color(star_class: str = ''):
 	# Main Sequence Stars
 	star_class_O = {'red': 155, 'green': 176, 'blue': 255, 'brightness': 254, 'saturation': 254}

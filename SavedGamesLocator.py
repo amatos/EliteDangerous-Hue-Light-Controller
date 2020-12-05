@@ -5,13 +5,14 @@ if platform.system() == 'Windows':
 	import winreg
 
 
+# noinspection SpellCheckingInspection,SpellCheckingInspection,SpellCheckingInspection
 def get_saved_games_path():
 	"""
 	Returns the default Saved Games path for linux or windows
 
 	Adapted from this: https://stackoverflow.com/questions/35851281/python-finding-the-users-downloads-folder?lq=1
 	"""
-	save_game_root = None
+	save_game_root = ''
 	osname = platform.system()
 	if osname == 'Windows':
 		sub_key = r'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders'
@@ -32,10 +33,8 @@ def get_saved_games_path():
 									  'users',
 									  'steamuser',
 									  'Saved Games')
-	else:
-		save_game_root = ''
-	return os.path.join(save_game_root, "Frontier Developments", "Elite Dangerous")
 
+	return os.path.join(save_game_root, "Frontier Developments", "Elite Dangerous")
 
 
 def main():

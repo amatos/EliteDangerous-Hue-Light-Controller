@@ -9,7 +9,7 @@ from rgbxy import Converter
 import config
 
 
-# noinspection SpellCheckingInspection
+# noinspection SpellCheckingInspection,PyPep8
 class HueLightControl:
 	"""Send commands to Hue Bridge.
 		Populate config.py with:
@@ -106,7 +106,6 @@ class HueLightControl:
 		self.state = self.bridge.get_light(light_id=self.light, parameter='on')
 		self.logger.debug('Light status: ' + str(self.state))
 
-
 	def set_rgb(self, r: int = 0, g: int = 0, b: int = 0, bright: float = 0.8):
 		"""Turns on the light with the provided RGB and brightness values.
 		Takes RGB + Brightness as params.
@@ -126,8 +125,8 @@ class HueLightControl:
 		self.bright = bright
 		convert = Converter()
 		self.ciex, self.ciey = convert.rgb_to_xy(red=self.red,
-									   green=self.green,
-									   blue=self.blue)
+												 green=self.green,
+												 blue=self.blue)
 		self._send_command()
 		return
 

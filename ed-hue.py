@@ -19,6 +19,7 @@ class EDHue:
 			journal_watcher=None,
 			journal_change_processor=JournalChangeProcessor()):
 
+		self.hue = HueLightControl()
 		configure_logger()
 		self.logger = logging.getLogger('EDHue.ED_Hue')
 		self.logger.debug('Initializing EDHue class.')
@@ -44,19 +45,19 @@ class EDHue:
 		if new_entry['event'] == 'StartJump':
 			self.logger.debug('Received a StartJump event.')
 			self.logger.debug('Setting a color loop.')
-			hue.colorloop()
+			self.hue.colorloop()
 			if new_entry['JumpType'] == 'Hyperspace':
 				self.logger.debug('Jump type is Hyperspace!')
 				self.logger.debug('Found a star ' + new_entry['StarClass'])
 				r, g, b, bright, sat = star_color(new_entry['StarClass'])
 				self.logger.debug('Star RGB: ' + str(r) + ' ' + str(g) + ' ' + str(b))
-				hue.set_star(r=r, g=g, b=b, bright=bright)
+				self.hue.set_star(r=r, g=g, b=b, bright=bright)
 		if new_entry['event'] == 'FSDJump':
 			self.logger.debug('Received an FSDJump event.')
 			self.logger.debug('Clearing color loop')
-			hue.clear_colorloop()
+			self.hue.clear_colorloop()
 			self.logger.debug('Colorizing light')
-			hue.starlight()
+			self.hue.starlight()
 
 	def on_journal_change(self, altered_journal):
 		self.logger.debug('In on_journal_change.')
@@ -89,8 +90,8 @@ def main():
 	logger = logging.getLogger('EDHue')
 
 	logger.info('Starting.')
-	ed_hue = EDHue()
 	hue = HueLightControl()
+	ed_hue = EDHue()
 
 	logger.info('ED Hue is active.  Awaiting events...')
 	hue.light_on()
@@ -102,6 +103,7 @@ def main():
 		logger.info('Interrupt received.  Shutting down.')
 		hue.light_off()
 		ed_hue.stop()
+
 
 if __name__ == '__main__':
 	main()
