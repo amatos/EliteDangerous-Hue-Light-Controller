@@ -3,6 +3,7 @@ import logging.config
 import time
 
 import yaml
+import config
 
 from SavedGamesLocator import get_saved_games_path
 from hue_light import HueLightControl
@@ -80,6 +81,9 @@ def configure_logger():
 	# Load logging config
 	with open('logging.yaml', 'r') as f:
 		log_cfg = yaml.safe_load(f.read())
+	if config.debug:
+		for logtype in log_cfg['loggers']:
+			log_cfg['loggers'][logtype]['handlers'] = ['console', 'file']
 	logging.config.dictConfig(log_cfg)
 	return
 

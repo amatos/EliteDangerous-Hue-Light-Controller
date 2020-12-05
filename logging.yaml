@@ -19,23 +19,23 @@ handlers:
 loggers:
   EDHue:
     level: DEBUG
-    handlers: [console, file]
+    handlers: [console]
     propagate: no
   EDHue.ED_Hue:
     level: DEBUG
-    handlers: [console, file]
+    handlers: [console]
     propagate: no
   EDHue.FileSystemUpdatePrompter:
     level: DEBUG
-    handlers: [console, file]
+    handlers: [console]
     propagate: no
   EDHue.journal.EntriesChangeHandler:
     level: DEBUG
-    handlers: [console, file]
+    handlers: [console]
     propagate: no
   EDHue.journal.JournalProcessor:
     level: DEBUG
-    handlers: [console, file]
+    handlers: [console]
     propagate: no
 root:
   level: DEBUG
