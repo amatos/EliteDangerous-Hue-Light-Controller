@@ -123,3 +123,7 @@ def star_color(star_class: str = ''):
 		sat = 0
 	bri = (bri / 254)
 	return red, green, blue, bri, sat
+
+
+if __name__ == '__main__':
+	print('Run ed-hue.py to execute program.')

@@ -41,3 +41,7 @@ class FileSystemUpdatePrompter:
 	def set_watch_file(self, path_to_query):
 		self.logger.debug('Looking for logs in: ' + path_to_query)
 		self.path_to_query = path_to_query
+
+
+if __name__ == '__main__':
+	print('Run ed-hue.py to execute program.')

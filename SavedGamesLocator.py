@@ -32,10 +32,19 @@ def get_saved_games_path():
 									  'users',
 									  'steamuser',
 									  'Saved Games')
-
+	else:
+		save_game_root = ''
 	return os.path.join(save_game_root, "Frontier Developments", "Elite Dangerous")
 
 
-if __name__ == "__main__":
-	print(get_saved_games_path())
-	assert os.path.exists(get_saved_games_path())
+
+def main():
+	try:
+		assert os.path.exists(get_saved_games_path())
+	except AssertionError:
+		print('Game log path not found.')
+
+
+if __name__ == '__main__':
+	print('Run ed-hue.py to execute program.')
+	main()

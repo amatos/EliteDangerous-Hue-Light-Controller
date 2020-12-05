@@ -74,11 +74,20 @@ class EDHue:
 		self.journalWatcher.stop()
 
 
-if __name__ == '__main__':
+def configure_logger():
+	"""Load settings from logging.yaml
+
+	@return:
+	"""
 	# Load logging config
 	with open('logging.yaml', 'r') as f:
 		log_cfg = yaml.safe_load(f.read())
 	logging.config.dictConfig(log_cfg)
+	return
+
+
+def main():
+	configure_logger()
 	# create logger with 'EDHue'
 	logger = logging.getLogger('EDHue')
 
@@ -96,3 +105,6 @@ if __name__ == '__main__':
 		logger.info('Interrupt received.  Shutting down.')
 		hue.light_off()
 		ed_hue.stop()
+
+if __name__ == '__main__':
+	main()

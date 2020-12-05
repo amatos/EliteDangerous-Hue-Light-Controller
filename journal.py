@@ -220,3 +220,7 @@ class JournalWatcher:
 			return sorted(journals)[-1]
 		else:
 			return None
+
+
+if __name__ == '__main__':
+	print('Run ed-hue.py to execute program.')
