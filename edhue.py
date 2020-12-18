@@ -1,9 +1,9 @@
 import logging
 import logging.config
 import time
+import os
 
 import yaml
-import config
 
 from SavedGamesLocator import get_saved_games_path
 from hue_light import HueLightControl
@@ -16,14 +16,16 @@ default_journal_path = get_saved_games_path()
 class EDHue:
 	def __init__(
 			self,
+			hueLight='',
 			force_polling=False,
 			journal_watcher=None,
 			journal_change_processor=JournalChangeProcessor()):
 
-		self.hue = HueLightControl()
 		configure_logger()
 		self.logger = logging.getLogger('EDHue.ED_Hue')
 		self.logger.debug('Initializing EDHue class.')
+		self.hueLight = hueLight
+		self.hue = HueLightControl(self.hueLight)
 		if journal_watcher is None:
 			journal_watcher = JournalWatcher(default_journal_path, force_polling=force_polling)
 
@@ -73,7 +75,7 @@ class EDHue:
 		self.journalWatcher.stop()
 
 
-def configure_logger():
+def configure_logger(debug=False):
 	"""Load settings from logging.yaml
 
 	@return:
@@ -81,21 +83,36 @@ def configure_logger():
 	# Load logging config
 	with open('logging.yaml', 'r') as f:
 		log_cfg = yaml.safe_load(f.read())
-	if config.debug:
+	if debug:
 		for logtype in log_cfg['loggers']:
 			log_cfg['loggers'][logtype]['handlers'] = ['console', 'file']
 	logging.config.dictConfig(log_cfg)
 	return
 
 
+def initialize():
+	if os.path.exists('config.py'):
+		import config
+		hueIP = config.hueIP
+		hueLight = config.hueLight
+		debug = config.debug
+	else:
+		hueIP=''
+		hueLight=''
+		debug=False
+	return hueIP, hueLight, debug
+
 def main():
-	configure_logger()
+	hueIP, hueLight, debug = initialize()
+	configure_logger(debug)
 	# create logger with 'EDHue'
 	logger = logging.getLogger('EDHue')
 
 	logger.info('Starting.')
-	hue = HueLightControl()
-	ed_hue = EDHue()
+	if debug:
+		logger.debug('Debugging mode enabled.')
+	hue = HueLightControl(hueLight)
+	ed_hue = EDHue(hueLight)
 
 	logger.info('ED Hue is active.  Awaiting events...')
 	hue.light_on()

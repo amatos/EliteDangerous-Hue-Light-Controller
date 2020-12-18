@@ -59,7 +59,7 @@ class HueLightControl:
 
 	"""
 
-	def __init__(self):
+	def __init__(self, hueLight=''):
 		"""Initializes HueLightControl with default values.
 
 		Please note, the default values for CIE XY are set to "white",
@@ -99,7 +99,7 @@ class HueLightControl:
 		self.color_loop = False
 		self.state = False
 		self.alert_status = 'none'
-		self.light = config.hueLight
+		self.light = hueLight
 
 		self.logger.debug('Initializing HueLightControl.')
 		self.logger.debug('Getting light status.')
@@ -297,6 +297,15 @@ class HueLightControl:
 		self.color_loop = False
 
 
+def get_lights(bridge):
+	pass
+
+def validate_connection(bridge):
+	pass
+
+def initial_connection(bridge):
+	pass
+
 def main():
 	print('Sanity check: Turn on the light, wait 2s, then turn it off.')
 	hue = HueLightControl()
@@ -306,5 +315,5 @@ def main():
 
 
 if __name__ == '__main__':
-	print('Run ed-hue.py to execute program.')
+	print('Run edhue.py to execute program.')
 	main()

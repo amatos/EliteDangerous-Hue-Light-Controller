@@ -127,4 +127,4 @@ def star_color(star_class: str = ''):
 
 
 if __name__ == '__main__':
-	print('Run ed-hue.py to execute program.')
+	print('Run edhue.py to execute program.')
