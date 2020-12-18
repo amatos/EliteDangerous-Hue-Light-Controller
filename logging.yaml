@@ -7,7 +7,7 @@ formatters:
 handlers:
   console:
     class: logging.StreamHandler
-    level: INFO
+    level: DEBUG
     formatter: simple
     stream: ext://sys.stdout
   file:
@@ -20,6 +20,10 @@ loggers:
   EDHue:
     level: DEBUG
     handlers: [console]
+    propagate: no
+  EDHue.GUI:
+    level: DEBUG
+    handlers: [ console ]
     propagate: no
   EDHue.ED_Hue:
     level: DEBUG
