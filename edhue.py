@@ -94,18 +94,18 @@ def configure_logger(debug=False):
 def initialize():
 	if os.path.exists('config.py'):
 		import config
-		hueIP = config.hueIP
-		hueLight = config.hueLight
+		hue_IP = config.hue_IP
+		hue_light = config.hue_light
 		debug = config.debug
 	else:
-		hueIP = ''
-		hueLight = ''
+		hue_IP = ''
+		hue_light = ''
 		debug = False
-	return hueIP, hueLight, debug
+	return hue_IP, hue_light, debug
 
 
 def main():
-	hueIP, hueLight, debug = initialize()
+	hue_IP, hue_light, debug = initialize()
 	configure_logger(debug)
 	# create logger with 'EDHue'
 	logger = logging.getLogger('EDHue')
@@ -113,8 +113,8 @@ def main():
 	logger.info('Starting.')
 	if debug:
 		logger.debug('Debugging mode enabled.')
-	hue = HueLightControl(hueLight)
-	ed_hue = EDHue(hueLight)
+	hue = HueLightControl(hue_light)
+	ed_hue = EDHue(hue_light)
 
 	logger.info('ED Hue is active.  Awaiting events...')
 	hue.light_on()

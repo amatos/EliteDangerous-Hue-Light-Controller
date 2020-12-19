@@ -79,20 +79,19 @@ def GUImain():
                 logger.debug('Cancel selected, or window closed.')
                 break
             if event == 'Ok':
-                hue_light = values['-HUE_LIGHT-']
+                bridge_light = values['-HUE_LIGHT-']
                 break
             if event == 'scan':
-
                 break
 
         # Finish up by removing from the screen
         logger.debug('Closing Configure window and returning:')
-        logger.debug('  Hue IP:    ' + hue_IP)
-        logger.debug('  Hue Light: ' + hue_light)
+        logger.debug('  Hue IP:    ' + bridge_IP)
+        logger.debug('  Hue Light: ' + bridge_light)
         window.close()
-        return hue_IP, hue_light
+        return bridge_IP, bridge_light
 
-    bridgeIP, bridgeLight, debug = initialize()
+    bridge_IP, bridge_light, debug = initialize()
     configure_logger()
     # create logger with 'EDHue'
     logger = logging.getLogger('EDHue.GUI')
@@ -100,14 +99,16 @@ def GUImain():
     logger.info('Starting.')
 
     # Define my theme
-    sg.LOOK_AND_FEEL_TABLE['EliteTheme'] = {'BACKGROUND': '#000000',    # Black
-                                            'TEXT': '#ffffff',          # White
-                                            'INPUT': '#f07b05',         # Elite Orange
-                                            'TEXT_INPUT': '#ffffff',    # White
-                                            'SCROLL': '#f07b05',        # Elite Orange
-                                            'BUTTON': ('white', '#f07b05'), # White on Elite Orange
-                                            'PROGRESS': ('#ffffff', '#000000'), # White on Black
-                                            'BORDER': 1, 'SLIDER_DEPTH': 0, 'PROGRESS_DEPTH': 0,
+    sg.LOOK_AND_FEEL_TABLE['EliteTheme'] = {'BACKGROUND': '#000000',  # Black
+                                            'TEXT': '#ffffff',  # White
+                                            'INPUT': '#f07b05',  # Elite Orange
+                                            'TEXT_INPUT': '#ffffff',  # White
+                                            'SCROLL': '#f07b05',  # Elite Orange
+                                            'BUTTON': ('white', '#f07b05'),  # White on Elite Orange
+                                            'PROGRESS': ('#ffffff', '#000000'),  # White on Black
+                                            'BORDER': 1,
+                                            'SLIDER_DEPTH': 0,
+                                            'PROGRESS_DEPTH': 0,
                                             }
 
     # Switch to use your newly created theme
@@ -116,19 +117,27 @@ def GUImain():
     # sg.popup_get_text('This how the MyNewTheme custom theme looks')
 
     # Define the window's contents
-    layout = [[sg.Button(key='StartImage', image_filename=os.path.join('assets', 'edlogo2.gif'), pad=(0, 0)),
-               sg.Button(button_text='Elite Dangerous Hue Light Sync', key='StartText', font=('euro caps', 38),
-                         pad=(0, 0))],
-              [sg.Text('Configured Bridge:', justification='right', size=(18, 0)),
-               sg.Text(bridgeIP, key='Bridge', justification='left', size=(18, 0))],
-              [sg.Text('Configured Light:', justification='right', size=(18, 0)),
-               sg.Text(bridgeLight, key='Light', justification='left', size=(18, 0))],
-              [sg.Button('Configure', font=('euro caps', 32), pad=((0, 6), (0, 0))),
-               sg.Button('Exit', size=(4, 1), pad=((545, 0), (0, 0)), font=('euro caps', 32))]
+    layout = [[sg.Button(key='StartImage',
+                         image_filename=os.path.join('assets', 'edlogo2.gif'),
+                         pad=(0, 0)),
+               sg.Button(button_text='Elite Dangerous Hue Light Sync',
+                         key='StartText', font=('euro caps', 38), pad=(0, 0))],
+              [sg.Text('Configured Bridge:', justification='right',
+                       size=(18, 0)),
+               sg.Text(bridge_IP, key='Bridge', justification='left',
+                       size=(18, 0))],
+              [sg.Text('Configured Light:', justification='right',
+                       size=(18, 0)),
+               sg.Text(bridge_light, key='Light', justification='left',
+                       size=(18, 0))],
+              [sg.Button('Configure', font=('euro caps', 32),
+                         pad=((0, 6), (0, 0))),
+               sg.Button('Exit', size=(4, 1), pad=((545, 0), (0, 0)),
+                         font=('euro caps', 32))]
               ]
     # Create the window
-    window = sg.Window('E:D Hue Light Sync', layout, margins=(25, 25), background_color='#000000',
-                       element_justification='c')
+    window = sg.Window('E:D Hue Light Sync', layout, margins=(25, 25),
+                       background_color='#000000', element_justification='c')
 
     # Display and interact with the Window using an Event Loop
     while True:
@@ -137,30 +146,33 @@ def GUImain():
         if event == sg.WINDOW_CLOSED or event == 'Exit':
             break
         if event == 'StartImage' or event == 'StartText':
-            if bridgeIP == '' and bridgeLight == '':
-                sg.popup_error('Both the Philips Hue Bridge and Light source must be populated.\n'
+            if bridge_IP == '' and bridge_light == '':
+                sg.popup_error('Both the Philips Hue Bridge and Light source '
+                               'must be populated.\n'
                                'Click on configure to set them up.')
-            elif bridgeIP == '':
+            elif bridge_IP == '':
                 sg.popup_error('The Philips Hue Bridge must be populated.\n'
                                'Click on configure to set it up.')
-            elif bridgeLight == '':
-                sg.popup_error('The Philips Hue Light source must be populated.\n'
+            elif bridge_light == '':
+                sg.popup_error('The Philips Hue Light source must be '
+                               'populated.\n'
                                'Click on configure to set it up.')
-
-            start(window.AllKeysDict['Light'].DisplayText)
+            GUIstart(bridge_IP, bridge_light)
         if event == 'Configure':
             window.hide()
-            bridgeIP, bridgeLight = configure_ui(bridgeIP, bridgeLight)
+            bridge_IP, bridge_light = configure_ui(bridge_IP, bridge_light)
             window.un_hide()
-            logger.debug('Returned bridge IP: ' + bridgeIP)
-            logger.debug('Returned Light: ' + bridgeLight)
-            window['Bridge'].update(bridgeIP)
-            window['Light'].update(bridgeLight)
+            window.force_focus()
+            logger.debug('Returned bridge IP: ' + bridge_IP)
+            logger.debug('Returned Light: ' + bridge_light)
+            window['Bridge'].update(bridge_IP)
+            window['Light'].update(bridge_light)
     # Finish up by removing from the screen and doing some cleanup
     window.close()
-    sg.popup_auto_close('See you in the Black, Commander.\n\no7', background_color='#000000', text_color='#f07b05',
+    sg.popup_auto_close('See you in the Black, Commander.\n\no7',
+                        background_color='#000000', text_color='#f07b05',
                         no_titlebar=True, button_type=5, font=('euro caps', 32))
-    cleanup(window.AllKeysDict['Light'].DisplayText)
+    cleanup(bridge_IP, bridge_light)
 
 
 if __name__ == '__main__':
