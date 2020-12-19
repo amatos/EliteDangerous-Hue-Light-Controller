@@ -16,7 +16,7 @@ default_journal_path = get_saved_games_path()
 class EDHue:
 	def __init__(
 			self,
-			hueLight='',
+			hue_light='',
 			force_polling=False,
 			journal_watcher=None,
 			journal_change_processor=JournalChangeProcessor()):
@@ -24,8 +24,9 @@ class EDHue:
 		configure_logger()
 		self.logger = logging.getLogger('EDHue.ED_Hue')
 		self.logger.debug('Initializing EDHue class.')
-		self.hueLight = hueLight
-		self.hue = HueLightControl(self.hueLight)
+		if hue_light != '':
+			self.hue_light = hue_light
+			self.hue = HueLightControl(self.hue_light)
 		if journal_watcher is None:
 			journal_watcher = JournalWatcher(default_journal_path, force_polling=force_polling)
 

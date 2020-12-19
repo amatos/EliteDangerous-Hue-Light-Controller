@@ -6,7 +6,10 @@ import yaml
 from phue import Bridge
 from rgbxy import Converter
 
-import config
+try:
+	import config
+except ImportError:
+	pass
 
 
 # noinspection SpellCheckingInspection,PyPep8
@@ -14,7 +17,7 @@ class HueLightControl:
 	"""Send commands to Hue Bridge.
 		Populate config.py with:
 			HueIP
-			hueLight
+			hue_light
 	Attributes:
 		logger : Object
 			Local logger from logging
@@ -103,7 +106,10 @@ class HueLightControl:
 
 		self.logger.debug('Initializing HueLightControl.')
 		self.logger.debug('Getting light status.')
-		self.state = self.bridge.get_light(light_id=self.light, parameter='on')
+		if self.light != '':
+			self.state = self.bridge.get_light(light_id=self.light, parameter='on')
+		else:
+			self.logger.debug('Light undefined.  Unable to control hue light.')
 		self.logger.debug('Light status: ' + str(self.state))
 
 	def set_rgb(self, r: int = 0, g: int = 0, b: int = 0, bright: float = 0.8):
