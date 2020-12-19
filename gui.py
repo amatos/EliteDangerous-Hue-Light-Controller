@@ -5,36 +5,55 @@ import os
 
 import PySimpleGUI as sg
 
+import hue_light
 from edhue import configure_logger, EDHue, initialize
-from hue_light import HueLightControl
-import mdns
+
 
 def GUImain():
-    def start(hue_light):
-        logger.info('Starting.')
-        hue = HueLightControl(hue_light)
-        EDHue(hue_light)
+    def GUIstart(ip, light):
+        logger.info('In GUImain - start')
+        logger.info('Validating bridge connection.')
+        try:
+            hue_light.validate_connection(ip)
+        except ConnectionRefusedError:
+            logger.error('Unable to connect to bridge.')
+            return
+        hue = hue_light.HueLightControl(bridge_light)
+        EDHue(bridge_light)
         logger.info('ED Hue is active.  Awaiting events...')
         hue.light_on()
 
-    def cleanup(hue_light):
-        if hue_light != '':
-            hue = HueLightControl(hue_light)
-            hue.light_off()
+    def cleanup(ip, light):
+        if light != '':
+            try:
+                hue_light.validate_connection(ip)
+                hue = hue_light.HueLightControl(light)
+                hue.light_off()
+                EDHue(light).stop()
+            except ConnectionRefusedError:
+                logger.error('Unable to connect to bridge.')
         logger.info('See you in the Black, Commander!')
         logger.info('o7')
-        EDHue(hue_light).stop()
 
-    def configure_ui(hue_IP='0.0.0.0', hue_light=''):
+
+    def configure_ui(bridge_IP='0.0.0.0', bridge_light=''):
         logger.debug('In Configure UI')
         logger.debug('Passed in values (if any):')
-        logger.debug('  Hue IP:    ' + hue_IP)
-        logger.debug('  Hue Light: ' + hue_light)
+        logger.debug('  Hue IP:    ' + bridge_IP)
+        logger.debug('  Hue Light: ' + bridge_light)
+
+        '''
+        Philips Hue Bridge configuration
+        '''
 
         # Define the window's contents
         layout = [[sg.Text('Philips Hue Bridge Configuration')],
-                  [sg.Text('Hue Bridge IP:'), sg.Input(default_text=hue_IP, key='-HUE_BRIDGE-', enable_events=True)],
-                  [sg.Button('Ok', bind_return_key=True), sg.Button('Scan for Bridge', key='scan'), sg.Button('Cancel')]]
+                  [sg.Text('Hue Bridge IP:'),
+                   sg.Input(default_text=bridge_IP, key='-HUE_BRIDGE-',
+                            enable_events=True)],
+                  [sg.Button('Ok', bind_return_key=True),
+                   sg.Button('Scan for Bridge', key='scan'),
+                   sg.Button('Cancel')]]
         # Create the window
         window = sg.Window('Configure Hue Bridge', layout)
 
@@ -44,30 +63,56 @@ def GUImain():
             # See if user wants to quit or window was closed
             if event == sg.WINDOW_CLOSED or event == 'Cancel':
                 logger.debug('Cancel selected, or window closed.')
-                break
+                if event != sg.WINDOW_CLOSED:
+                    window.close()
+                return '', ''
             if event == 'scan':
-                ip, host, name, type = mdns.mdns_search()
+                logger.debug('Scan selected.')
+                ip, host, name, type = hue_light.get_bridge()
                 window['-HUE_BRIDGE-'].update(ip)
             if event == 'Ok':
                 try:
                     ipaddress.ip_address(values['-HUE_BRIDGE-'])
-                    logger.debug('Valid IP address given: ' + values['-HUE_BRIDGE-'])
-                    hue_IP = values['-HUE_BRIDGE-']
-                    break
+                    logger.debug('Valid IP address given: '
+                                 + values['-HUE_BRIDGE-'])
+                    bridge_IP = values['-HUE_BRIDGE-']
                 except ValueError:
-                    logger.debug('Invalid IP address entered.  Showing error window.')
+                    logger.debug('Invalid IP address entered.  '
+                                 'Showing error window.')
                     sg.PopupError('Please enter a valid IP address')
+                try:
+                    hue_light.validate_connection(bridge_IP)
+                    window.close()
+                    break
+                except ConnectionRefusedError:
+                    logger.debug("Could not connect to bridge.")
+                    sg.PopupOK('This appears to be the first time that this '
+                               'bridge has been used.  Please press the button '
+                               'on the bridge and try again.')
 
             # if last character in input element is invalid, remove it
-            if event == '-HUE_BRIDGE-' and values['-HUE_BRIDGE-'] and values['-HUE_BRIDGE-'][-1] not in ('0123456789.:'):
+            if event == '-HUE_BRIDGE-' \
+                    and values['-HUE_BRIDGE-'] \
+                    and values['-HUE_BRIDGE-'][-1] not in '0123456789.:':
                 window['-HUE_BRIDGE-'].update(values['-HUE_BRIDGE-'][:-1])
 
+        hue_light.validate_connection(bridge_IP)
+
+        '''
+        Philips Hue Light(s) configuration
+        '''
+
         layout = [[sg.Text('Philips Hue Bridge Configuration')],
-                  [sg.Text('Hue Bridge IP:'), sg.Input(default_text=hue_IP, key='-HUE_BRIDGE-',
-                                                       disabled_readonly_background_color='#000000', disabled=True)],
+                  [sg.Text('Hue Bridge IP:'),
+                   sg.Input(default_text=bridge_IP, key='-HUE_BRIDGE-',
+                            disabled_readonly_background_color='#000000',
+                            disabled=True)],
                   [sg.Text('Hue Light(s): '),
-                   sg.Input(default_text=hue_light, key='-HUE_LIGHT-', pad=((10, 0), (10, 10)))],
-                  [sg.Button('Ok', bind_return_key=True), sg.Button('Scan for Lights', key='scan'), sg.Button('Cancel')]]
+                   sg.Input(default_text=bridge_light, key='-HUE_LIGHT-',
+                            pad=((10, 0), (10, 10)))],
+                  [sg.Button('Ok', bind_return_key=True),
+                   sg.Button('Scan for Lights', key='scan'),
+                   sg.Button('Cancel')]]
 
         window = sg.Window('Configure Hue Light', layout)
 
