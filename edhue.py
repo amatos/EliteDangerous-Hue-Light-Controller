@@ -85,8 +85,8 @@ def configure_logger(debug=False):
 	with open('logging.yaml', 'r') as f:
 		log_cfg = yaml.safe_load(f.read())
 	if debug:
-		for logtype in log_cfg['loggers']:
-			log_cfg['loggers'][logtype]['handlers'] = ['console', 'file']
+		for log_type in log_cfg['loggers']:
+			log_cfg['loggers'][log_type]['handlers'] = ['console', 'file']
 	logging.config.dictConfig(log_cfg)
 	return
 
@@ -98,10 +98,11 @@ def initialize():
 		hueLight = config.hueLight
 		debug = config.debug
 	else:
-		hueIP=''
-		hueLight=''
-		debug=False
+		hueIP = ''
+		hueLight = ''
+		debug = False
 	return hueIP, hueLight, debug
+
 
 def main():
 	hueIP, hueLight, debug = initialize()
