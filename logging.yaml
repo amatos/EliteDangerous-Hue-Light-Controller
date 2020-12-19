@@ -41,6 +41,14 @@ loggers:
     level: DEBUG
     handlers: [console]
     propagate: no
+  EDHue.mDNS:
+    level: DEBUG
+    handlers: [ console ]
+    propagate: no
+  EDHue.mDNS.handler:
+    level: DEBUG
+    handlers: [ console ]
+    propagate: no
 root:
   level: DEBUG
   handlers: [console]
