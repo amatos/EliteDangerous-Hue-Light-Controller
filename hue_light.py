@@ -1,8 +1,8 @@
 import logging
 import logging.config
-
+from time import sleep
+import phue
 import yaml
-from phue import Bridge
 from rgbxy import Converter
 
 import mdns
@@ -63,7 +63,7 @@ class HueLightControl:
 
 	"""
 
-    def __init__(self, hueLight=''):
+    def __init__(self, hue_IP, hue_light=''):
         """Initializes HueLightControl with default values.
 
 		Please note, the default values for CIE XY are set to "white",
@@ -89,31 +89,52 @@ class HueLightControl:
             log_cfg = yaml.safe_load(f.read())
         logging.config.dictConfig(log_cfg)
         self.logger = logging.getLogger('EDHue.HueLight')
+        self.logger.debug('Initializing HueLightControl')
         self.star_red = 255
         self.star_green = 255
         self.star_blue = 255
         self.star_bright = 0.8
-        self.red = 0
-        self.green = 0
-        self.blue = 0
+        self.red = 1
+        self.green = 1
+        self.blue = 1
         self.bright = 0.8
         self.ciex = 0.3122
         self.ciey = 0.3282
-        self.bridge = Bridge()
         self.color_loop = False
         self.state = False
         self.alert_status = 'none'
-        self.light = hueLight
+        self.light = hue_light
 
-        self.logger.debug('Initializing HueLightControl.')
+        try:
+            self.logger.debug('Trying to connect to Hue bridge')
+            self.validate_connection(hue_IP)
+            self.bridge = phue.Bridge(hue_IP)
+        except phue.PhueRequestTimeout:
+            self.logger.debug('Failed to connect to Hue bridge')
+            raise
         self.logger.debug('Getting light status.')
         if self.light != '':
+            self.logger.debug('Light object: ' + str(self.light))
             self.state = self.bridge.get_light(light_id=self.light, parameter='on')
+            self.logger.debug('Light status: ' + str(self.state))
         else:
-            self.logger.debug('Light undefined.  Unable to control hue light.')
-        self.logger.debug('Light status: ' + str(self.state))
+            self.logger.debug("Light undefined.  Unable to control hue light.\n"
+                              "n.b.: This is expected if a light hasn't been "
+                              "selected yet.")
 
-    def set_rgb(self, r: int = 0, g: int = 0, b: int = 0, bright: float = 0.8):
+
+    def get_status(self):
+        self.logger.debug('Getting light status.')
+        self.logger.debug('  light: ' + str(self.light))
+        status = self.bridge.get_light(light_id=self.light, parameter='on')
+        return status
+
+    def get_current_colors(self):
+        ciex, ciey = self.bridge.get_light(light_id=self.light, parameter='xy')
+        bright = self.bridge.get_light(light_id=self.light, parameter='bri')
+        return ciex, ciey, bright
+
+    def set_rgb(self, r: int = 1, g: int = 1, b: int = 1, bright: float = 0.8):
         """Turns on the light with the provided RGB and brightness values.
 		Takes RGB + Brightness as params.
 		Uses rgbxy.Converter() to set the CIE XY values.
@@ -130,12 +151,29 @@ class HueLightControl:
         self.green = g
         self.blue = b
         self.bright = bright
-        convert = Converter()
-        self.ciex, self.ciey = convert.rgb_to_xy(red=self.red,
-                                                 green=self.green,
-                                                 blue=self.blue)
+        self.ciex, self.ciey = self.convert_rgb()
         self._send_command()
         return
+
+    def convert_rgb(self, red='', green='', blue=''):
+        if red == '':
+            red = self.red
+        if green == '':
+            green = self.green
+        if blue == '':
+            blue = self.blue
+        self.logger.debug('Converting rgb values')
+        self.logger.debug('  red   : ' + str(red))
+        self.logger.debug('  green : ' + str(green))
+        self.logger.debug('  blue  : ' + str(blue))
+        convert = Converter()
+        ciex, ciey = convert.rgb_to_xy(red=red,
+                                       green=green,
+                                       blue=blue)
+        self.logger.debug('Resulting ciex/ciey:')
+        self.logger.debug('  ciex: ' + str(ciex))
+        self.logger.debug('  ciey: ' + str(ciey))
+        return ciex, ciey
 
     def set_cie(self,
                 x: float = 0.3122,
@@ -160,6 +198,8 @@ class HueLightControl:
         self.logger.debug('In colorloop')
         self.logger.debug('Set status to loop')
         self._set_status('loop')
+        self.logger.debug('Turning light on')
+        self.state = True
         self.logger.debug('Storing old brightness.')
         old_brightness = self.bright
         self.logger.debug('Old brightness: ' + str(old_brightness))
@@ -259,14 +299,50 @@ class HueLightControl:
 		:return: nothing
 		"""
         self.logger.debug('In Starlight')
-
-        convert = Converter()
-        self.ciex, self.ciey = convert.rgb_to_xy(red=self.star_red,
-                                                 green=self.star_green,
-                                                 blue=self.star_blue)
+        self.logger.debug('  red   : ' + str(self.star_red))
+        self.logger.debug('  green : ' + str(self.star_green))
+        self.logger.debug('  blue  : ' + str(self.star_blue))
+        self.logger.debug('Turn on the light')
+        self.state = True
+        self.logger.debug('Converting RGB to ciex/ciey')
+        self.ciex, self.ciey = self.convert_rgb(red=self.star_red,
+                                                green=self.star_green,
+                                                blue=self.star_blue)
         self.bright = self.star_bright
         self._send_command()
         return
+
+    def alert_light(self,
+                    r: int = 255,
+                    g: int = 255,
+                    b: int = 255,
+                    bright: float = 1):
+        self.logger.debug('In alert_light')
+        current_ciex, current_ciey, current_bright = self.get_current_colors()
+        self.logger.debug('Alert colors:')
+        self.logger.debug('  red    : ' + str(r))
+        self.logger.debug('  green  : ' + str(g))
+        self.logger.debug('  blue   : ' + str(b))
+        self.logger.debug('  bright : ' + str(bright))
+        self.red = r
+        self.green = g
+        self.blue = b
+        self.bright = bright
+        self.ciex, self.ciey = self.convert_rgb()
+        self.alert_status = 'select'
+        self.logger.debug('Current ciex/ciey    : [' + str(current_ciex)
+                          + ', ' + str(current_ciey) + ']')
+        self.logger.debug('alert ciex/ciey      : [' + str(self.ciex)
+                          + ', ' + str(self.ciey) + ']')
+        self._send_command()
+        self.ciex = current_ciex
+        self.ciey = current_ciey
+        self.bright = current_bright
+        self.alert_status = 'none'
+        self.logger.debug('Reverted to ciex/ciey: [' + str(self.ciex)
+                          + ', ' + str(self.ciey) + ']')
+        self._send_command()
+
 
     def _send_command(self):
         """Executes a set_light _send_command to the Hue bridge via phue.
@@ -280,7 +356,7 @@ class HueLightControl:
 
 		:return: nothing
 		"""
-        self.logger.debug('In Command')
+        self.logger.debug('In _send_command')
         bri = int(self.bright * 254)
         counter = 1
         if self.color_loop:
@@ -291,10 +367,22 @@ class HueLightControl:
             effect = 'none'
 
         if self.alert_status == 'select':
-            counter = 3
+            self.logger.debug('Alert status was select')
+            counter = 10
 
         for count in range(counter):
-            self.logger.debug('Sending light _send_command.')
+            if counter > 1:
+                self.logger.debug('Sending light _send_command '
+                                  + str(count + 1) + '/' + str(counter))
+                self.logger.debug('Sleeping for 1 second')
+                sleep(1)
+            else:
+                self.logger.debug('Sending light _send_command.')
+            self.logger.debug('  state : ' + str(self.state))
+            self.logger.debug('  xy    : ' + str([self.ciex, self.ciey]))
+            self.logger.debug('  bri   : ' + str(bri))
+            self.logger.debug('  alert : ' + str(self.alert_status))
+            self.logger.debug('  effect: ' + str(effect))
             self.bridge.set_light(light_id=self.light,
                                   parameter={'on': self.state,
                                              'xy': [self.ciex, self.ciey],
@@ -304,13 +392,18 @@ class HueLightControl:
         self.color_loop = False
 
 
-def get_lights(bridge):
-    # Load logging config
-    with open('logging.yaml', 'r') as f:
-        log_cfg = yaml.safe_load(f.read())
-    logging.config.dictConfig(log_cfg)
-    logger = logging.getLogger('EDHue.HueLight.validation')
-    logger.debug('In get_lights')
+
+    def validate_connection(self, bridge):
+        self.logger.debug('In validate_connection')
+        try:
+            hue_bridge = phue.Bridge(ip=bridge)
+        except phue.PhueRequestTimeout:
+            self.logger.error('Request timed out talking to Hue Bridge at ' + bridge + '.')
+            raise
+        except phue.PhueRegistrationException:
+            self.logger.error('Press the hue button')
+            raise
+        self.logger.debug('Connection established to ' + str(bridge))
 
 def get_bridge():
     # Load logging config
@@ -328,25 +421,24 @@ def get_bridge():
             break
         else:
             logger.debug('Bridge not found.  Retrying up to '
-                         + str(2-counter) + 'more times.')
+                         + str(2 - counter) + 'more times.')
     return ip, host, name, type
 
-def validate_connection(bridge):
-    # Load logging config
-    with open('logging.yaml', 'r') as f:
-        log_cfg = yaml.safe_load(f.read())
-    logging.config.dictConfig(log_cfg)
-    logger = logging.getLogger('EDHue.HueLight.validation')
-    logger.debug('In validate_connection')
-    raise ConnectionRefusedError
 
-def initial_connection(bridge):
+def get_lights(bridge):
     # Load logging config
     with open('logging.yaml', 'r') as f:
         log_cfg = yaml.safe_load(f.read())
     logging.config.dictConfig(log_cfg)
     logger = logging.getLogger('EDHue.HueLight.validation')
-    logger.debug('In Initial Connection')
+    logger.debug('In get_lights')
+    lights = []
+    light_objects = phue.Bridge(bridge).get_light_objects(mode='id')
+    for count in light_objects:
+        light = (light_objects[count].light_id, light_objects[count].name)
+        lights.append(light)
+    return lights
+
 
 def validate_light(bridge, light):
     # Load logging config
@@ -359,3 +451,9 @@ def validate_light(bridge, light):
 
 if __name__ == '__main__':
     print('Run edhue.py to execute program.')
+    ip, hostname, name, type = get_bridge()
+    print('Hue bridge found (if any) at:')
+    print('  name:     ' + name)
+    print('  type:     ' + type)
+    print('  hostname: ' + hostname)
+    print('  IP:       ' + str(ip))
