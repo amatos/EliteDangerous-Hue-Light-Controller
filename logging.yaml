@@ -21,6 +21,10 @@ loggers:
     level: DEBUG
     handlers: [console]
     propagate: no
+  EDHue.config:
+    level: DEBUG
+    handlers: [ console ]
+    propagate: no
   EDHue.HueLight:
     level: DEBUG
     handlers: [console]

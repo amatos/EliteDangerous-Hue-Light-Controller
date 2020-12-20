@@ -21,7 +21,7 @@ class JournalChangeProcessor:
 			log_cfg = yaml.safe_load(f.read())
 		logging.config.dictConfig(log_cfg)
 		self.logger = logging.getLogger('EDHue.journal.JournalProcessor')
-		self.logger.debug('Initializing EDHue class.')
+		self.logger.debug('Initializing JournalChangeProcessor.')
 		self._new_journal_entry_callback = None
 		self.latest_journal = None
 		self.journal_size = 0
