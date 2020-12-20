@@ -38,7 +38,7 @@ class JournalChangeProcessor:
 		logging.debug(f'New journal entry identified: {line}')
 		entry = json.loads(line)
 		entry[
-			'type'] = "JournalEntry"  # Add an identifier that's common to
+			'mdns_type'] = "JournalEntry"  # Add an identifier that's common to
 		# everything we shove down the outgoing pipe so the receiver can distinguish.
 		return entry
 

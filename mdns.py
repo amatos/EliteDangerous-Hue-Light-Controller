@@ -1,26 +1,25 @@
 import logging
 import logging.config
-import yaml
-
 from time import sleep
 from typing import cast
 
+import yaml
 from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
 
 
-class zeroconf_response:
+class zeroConfResponse:
     def __init__(self):
         self.host = ''
         self.ip = ''
         self.name = ''
         self.type = ''
-        self.populated=False
+        self.populated = False
 
-    def populate(self, host, ip, name, type):
+    def populate(self, host, ip, name, mdns_type):
         self.host = host
         self.ip = ip
         self.name = name
-        self.type = type
+        self.type = mdns_type
         self.populated = True
 
 
@@ -44,7 +43,7 @@ def mdns_search():
             zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange
     ) -> None:
         logger = logging.getLogger('EDHue.mDNS.handler')
-        logger.debug("Service %s of type %s state changed: %s" % (name, service_type, state_change))
+        logger.debug("Service %s of mdns_type %s state changed: %s" % (name, service_type, state_change))
 
         if state_change is ServiceStateChange.Added:
             info = zeroconf.get_service_info(service_type, name)
@@ -54,7 +53,7 @@ def mdns_search():
                 logger.debug("  Addresses: %s" % ", ".join(addresses))
                 logger.debug("  Weight: %d, priority: %d" % (info.weight, info.priority))
                 logger.debug("  Server: %s" % (info.server,))
-                zc_response.populate(host=info.server, ip=info.parsed_addresses(), name=info.name, type=info.type)
+                zc_response.populate(host=info.server, ip=info.parsed_addresses(), name=info.name, mdns_type=info.type)
                 if info.properties:
                     logger.debug("  Properties are:")
                     for key, value in info.properties.items():
@@ -67,14 +66,14 @@ def mdns_search():
     configure_logger()
     # create logger with 'EDHue'
     logger = logging.getLogger('EDHue.mDNS')
-    zc_response = zeroconf_response()
+    zc_response = zeroConfResponse()
 
     logger.debug('In mDNS search')
     zc = Zeroconf()
     ip = ''
     hostname = ''
     name = ''
-    type = ''
+    mdns_type = ''
     services = ["_hue._tcp.local."]
 
     logger.debug('Browsing for ' + str(services[0]))
@@ -87,7 +86,7 @@ def mdns_search():
             ip = zc_response.ip[0]
             hostname = zc_response.host
             name = zc_response.name
-            type = zc_response.type
+            mdns_type = zc_response.type
             break
         sleep(.1)
         logger.debug('Still searching.')
@@ -96,7 +95,7 @@ def mdns_search():
         logger.debug('Addresses returned: ' + ip)
     else:
         logger.debug('Bridge not found within 5 seconds.')
-    return ip, hostname, name, type
+    return ip, hostname, name, mdns_type
 
 
 if __name__ == '__main__':

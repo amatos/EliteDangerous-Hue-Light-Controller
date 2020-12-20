@@ -1,6 +1,7 @@
 import logging
 import logging.config
 from time import sleep
+
 import phue
 import yaml
 from rgbxy import Converter
@@ -122,7 +123,6 @@ class HueLightControl:
                               "n.b.: This is expected if a light hasn't been "
                               "selected yet.")
 
-
     def get_status(self):
         self.logger.debug('Getting light status.')
         self.logger.debug('  light: ' + str(self.light))
@@ -155,12 +155,12 @@ class HueLightControl:
         self._send_command()
         return
 
-    def convert_rgb(self, red='', green='', blue=''):
-        if red == '':
+    def convert_rgb(self, red=255, green=255, blue=255):
+        if red == 255:
             red = self.red
-        if green == '':
+        if green == 255:
             green = self.green
-        if blue == '':
+        if blue == 255:
             blue = self.blue
         self.logger.debug('Converting rgb values')
         self.logger.debug('  red   : ' + str(red))
@@ -343,7 +343,6 @@ class HueLightControl:
                           + ', ' + str(self.ciey) + ']')
         self._send_command()
 
-
     def _send_command(self):
         """Executes a set_light _send_command to the Hue bridge via phue.
 		bri takes the bright (float) value and converts it to an
@@ -391,8 +390,6 @@ class HueLightControl:
                                              'effect': effect})
         self.color_loop = False
 
-
-
     def validate_connection(self, bridge):
         self.logger.debug('In validate_connection')
         try:
@@ -405,24 +402,29 @@ class HueLightControl:
             raise
         self.logger.debug('Connection established to ' + str(bridge))
 
+
 def get_bridge():
     # Load logging config
     with open('logging.yaml', 'r') as f:
         log_cfg = yaml.safe_load(f.read())
     logging.config.dictConfig(log_cfg)
     logger = logging.getLogger('EDHue.HueLight.validation')
+    ip = ''
+    host = ''
+    name = ''
+    mdns_type = ''
     logger.debug('In get_bridge')
     logger.debug('Calling mdns to find a bridge.')
     logger.debug('n.b.: This can take up to 5 seconds before we time out,')
     logger.debug('      and, we will try 3 times before giving up.')
     for counter in range(3):
-        ip, host, name, type = mdns.mdns_search()
+        ip, host, name, mdns_type = mdns.mdns_search()
         if ip != '':
             break
         else:
             logger.debug('Bridge not found.  Retrying up to '
                          + str(2 - counter) + 'more times.')
-    return ip, host, name, type
+    return ip, host, name, mdns_type
 
 
 def get_lights(bridge):
@@ -440,20 +442,11 @@ def get_lights(bridge):
     return lights
 
 
-def validate_light(bridge, light):
-    # Load logging config
-    with open('logging.yaml', 'r') as f:
-        log_cfg = yaml.safe_load(f.read())
-    logging.config.dictConfig(log_cfg)
-    logger = logging.getLogger('EDHue.HueLight.validation')
-    logger.debug('In validate_light')
-
-
 if __name__ == '__main__':
     print('Run edhue.py to execute program.')
-    ip, hostname, name, type = get_bridge()
+    ip, hostname, name, mdns_type = get_bridge()
     print('Hue bridge found (if any) at:')
     print('  name:     ' + name)
-    print('  type:     ' + type)
+    print('  mdns_type:     ' + mdns_type)
     print('  hostname: ' + hostname)
     print('  IP:       ' + str(ip))

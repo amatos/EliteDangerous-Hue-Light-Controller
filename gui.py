@@ -3,13 +3,15 @@ import logging
 import logging.config
 import os
 from time import sleep
+
 import PySimpleGUI as sg
+import phue
 
 import hue_light
 from edhue import configure_logger, EDHue, initialize, save_config
-import phue
 
 ELITE_ORANGE = '#f07b05'
+
 
 def GUI_main():
     def GUI_start(ip, light):
@@ -52,7 +54,6 @@ def GUI_main():
         logger.info('See you in the Black, Commander!')
         logger.info('o7')
 
-
     def GUI_configure_ui(bridge_IP='0.0.0.0', bridge_light=''):
         logger.debug('In Configure UI')
         logger.debug('Passed in values (if any):')
@@ -89,7 +90,7 @@ def GUI_main():
                 return bridge_IP, bridge_light
             if event == 'scan':
                 logger.debug('Scan selected.')
-                ip, host, name, type = hue_light.get_bridge()
+                ip, host, name, mdns_type = hue_light.get_bridge()
                 window['-HUE_BRIDGE-'].update(ip)
             if event == 'Ok':
                 try:
@@ -153,7 +154,7 @@ def GUI_main():
                             disabled=True)],
                   [sg.Text('Hue Light(s): '),
                    sg.Listbox(values=light_list, default_values=bridge_light,
-                              size=((widest + 1),10), key='-HUE_LIGHT-')],
+                              size=((widest + 1), 10), key='-HUE_LIGHT-')],
                   [sg.Text()],
                   [sg.Button('Ok', bind_return_key=True),
                    sg.Button('Flash Light', key='Flash'),
@@ -211,11 +212,12 @@ def GUI_main():
     logger.info('Starting.')
 
     connected = False
+    running_status = False
     ed_hue_status = 'Stopped'
     ed_hue_status_color = 'Red'
     # Define my theme
     sg.LOOK_AND_FEEL_TABLE['EliteTheme'] = {'BACKGROUND': '#000000',  # Black
-                                            'TEXT': '#ffffff',        # White
+                                            'TEXT': '#ffffff',  # White
                                             'INPUT': ELITE_ORANGE,
                                             'TEXT_INPUT': '#ffffff',  # White
                                             'SCROLL': ELITE_ORANGE,
@@ -322,9 +324,9 @@ def GUI_main():
     # Finish up by removing from the screen and doing some cleanup
     window.close()
     if connected:
-        non_blocking=True
+        non_blocking = True
     else:
-        non_blocking=False
+        non_blocking = False
     sg.popup_auto_close('See you in the Black, Commander.\n\no7',
                         background_color='#000000', text_color=ELITE_ORANGE,
                         no_titlebar=True, button_type=5, font=('euro caps', 32),
