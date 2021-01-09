@@ -1,8 +1,9 @@
 PyYAML~=5.3.1
 
-watchdog~=0.10.4
+watchdog~=1.0.2
 phue~=1.1
 rgbxy~=0.5
 
-PySimpleGUI~=4.32.1
+PySimpleGUI~=4.33.0
 zeroconf~=0.28.7
+future~=0.18.2
