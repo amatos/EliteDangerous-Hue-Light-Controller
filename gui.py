@@ -8,7 +8,8 @@ import PySimpleGUI as sg
 import phue
 
 import hue_light
-from edhue import configure_logger, EDHue, initialize, save_config
+from edhue import EDHue, initialize, save_config
+from log import configure_logger
 
 ELITE_ORANGE = '#f07b05'
 

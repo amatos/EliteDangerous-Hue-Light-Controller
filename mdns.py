@@ -3,9 +3,8 @@ import logging.config
 from time import sleep
 from typing import cast
 
-import yaml
 from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
-
+from log import configure_logger
 
 class zeroConfResponse:
     def __init__(self):
@@ -21,21 +20,6 @@ class zeroConfResponse:
         self.name = name
         self.type = mdns_type
         self.populated = True
-
-
-def configure_logger(debug=False):
-    """Load settings from logging.yaml
-
-	@return:
-	"""
-    # Load logging config
-    with open('logging.yaml', 'r') as f:
-        log_cfg = yaml.safe_load(f.read())
-    if debug:
-        for log_type in log_cfg['loggers']:
-            log_cfg['loggers'][log_type]['handlers'] = ['console', 'file']
-    logging.config.dictConfig(log_cfg)
-    return
 
 
 def mdns_search():
@@ -63,7 +47,7 @@ def mdns_search():
             else:
                 logger.debug("  No info")
 
-    configure_logger()
+    logging.config.dictConfig(configure_logger())
     # create logger with 'EDHue'
     logger = logging.getLogger('EDHue.mDNS')
     zc_response = zeroConfResponse()

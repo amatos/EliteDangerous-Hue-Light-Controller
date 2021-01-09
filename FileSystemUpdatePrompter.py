@@ -13,9 +13,7 @@ class FileSystemUpdatePrompter:
 
 	def __init__(self, path_to_query):
 		# Load logging config
-		with open('logging.yaml', 'r') as f:
-			log_cfg = yaml.safe_load(f.read())
-		logging.config.dictConfig(log_cfg)
+		logging.config.dictConfig(configure_logger())
 		self.logger = logging.getLogger('EDHue.FileSystemUpdatePrompter')
 		self.path_to_query = path_to_query
 		self.file_size = None

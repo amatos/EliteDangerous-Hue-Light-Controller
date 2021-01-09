@@ -3,11 +3,10 @@ import logging.config
 import os
 import time
 
-import yaml
-
 from SavedGamesLocator import get_saved_games_path
 from hue_light import HueLightControl
 from journal import JournalWatcher, JournalChangeProcessor
+from log import configure_logger
 from stars import star_color
 
 default_journal_path = get_saved_games_path()
@@ -111,20 +110,6 @@ class EDHue:
     def stop(self):
         self.logger.debug('Stopping journal watcher.')
         self.journalWatcher.stop()
-
-
-def configure_logger(debug=False):
-    """Load settings from logging.yaml
-
-	@return:
-	"""
-    # Load logging config
-    with open('logging.yaml', 'r') as f:
-        log_cfg = yaml.safe_load(f.read())
-    if debug:
-        for log_type in log_cfg['loggers']:
-            log_cfg['loggers'][log_type]['handlers'] = ['console', 'file']
-    return log_cfg
 
 
 def initialize():

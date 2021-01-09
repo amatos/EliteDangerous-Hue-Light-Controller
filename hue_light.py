@@ -7,6 +7,7 @@ import yaml
 from rgbxy import Converter
 
 import mdns
+from log import configure_logger
 
 try:
     import config
@@ -86,9 +87,7 @@ class HueLightControl:
 		:return: None
 		"""
         # Load logging config
-        with open('logging.yaml', 'r') as f:
-            log_cfg = yaml.safe_load(f.read())
-        logging.config.dictConfig(log_cfg)
+        logging.config.dictConfig(configure_logger())
         self.logger = logging.getLogger('EDHue.HueLight')
         self.logger.debug('Initializing HueLightControl')
         self.star_red = 255
@@ -405,9 +404,7 @@ class HueLightControl:
 
 def get_bridge():
     # Load logging config
-    with open('logging.yaml', 'r') as f:
-        log_cfg = yaml.safe_load(f.read())
-    logging.config.dictConfig(log_cfg)
+    logging.config.dictConfig(configure_logger())
     logger = logging.getLogger('EDHue.HueLight.validation')
     ip = ''
     host = ''
@@ -429,9 +426,7 @@ def get_bridge():
 
 def get_lights(bridge):
     # Load logging config
-    with open('logging.yaml', 'r') as f:
-        log_cfg = yaml.safe_load(f.read())
-    logging.config.dictConfig(log_cfg)
+    logging.config.dictConfig(configure_logger())
     logger = logging.getLogger('EDHue.HueLight.validation')
     logger.debug('In get_lights')
     lights = []

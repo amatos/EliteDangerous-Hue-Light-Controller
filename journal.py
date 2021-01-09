@@ -10,6 +10,7 @@ from watchdog.observers import Observer
 from watchdog.observers.polling import PollingObserver
 
 from FileSystemUpdatePrompter import FileSystemUpdatePrompter
+from log import configure_logger
 
 journal_file_pattern = "Journal.*.log"
 
@@ -17,9 +18,7 @@ journal_file_pattern = "Journal.*.log"
 class JournalChangeProcessor:
 	def __init__(self):
 		# Load logging config
-		with open('logging.yaml', 'r') as f:
-			log_cfg = yaml.safe_load(f.read())
-		logging.config.dictConfig(log_cfg)
+		logging.config.dictConfig(configure_logger())
 		self.logger = logging.getLogger('EDHue.journal.JournalProcessor')
 		self.logger.debug('Initializing JournalChangeProcessor.')
 		self._new_journal_entry_callback = None
@@ -132,9 +131,7 @@ class _EntriesChangeHandler(PatternMatchingEventHandler):
 			ignore_directories=True)
 
 		# Load logging config
-		with open('logging.yaml', 'r') as f:
-			log_cfg = yaml.safe_load(f.read())
-		logging.config.dictConfig(log_cfg)
+		logging.config.dictConfig(configure_logger())
 		self.logger = logging.getLogger('EDHue.journal.EntriesChangeHandler')
 		self.on_journal_change = None
 
